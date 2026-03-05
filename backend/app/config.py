@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     datajud_base_url: str = "https://api-publica.datajud.cnj.jus.br"
     evolution_api_url: str = "http://evolution:8080"
     evolution_api_key: str = ""
+    anthropic_api_key: str = ""
 
     class Config:
         env_file = ".env"

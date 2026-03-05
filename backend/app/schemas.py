@@ -178,3 +178,51 @@ class PrazoOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# -- Conversas / Chat --
+class ConversaCreate(BaseModel):
+    titulo: str | None = None
+    processo_id: int | None = None
+    usuario_id: int
+    modelo_claude: str = "claude-haiku-4-5-20251001"
+
+
+class MensagemOut(BaseModel):
+    id: int
+    conversa_id: int
+    role: str
+    conteudo: str
+    tokens_input: int | None
+    tokens_output: int | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ConversaOut(BaseModel):
+    id: int
+    titulo: str | None
+    usuario_id: int
+    processo_id: int | None
+    modelo_claude: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ConversaDetailOut(ConversaOut):
+    mensagens: list[MensagemOut] = []
+
+
+class MensagemCreate(BaseModel):
+    mensagem: str
+    modelo: str | None = None
+
+
+class ChatResponse(BaseModel):
+    resposta: str
+    modelo: str
+    tokens_input: int
+    tokens_output: int
