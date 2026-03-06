@@ -21,7 +21,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
-
+  String? _erro;
 
   List<Processo> _processos = [];
   List<Cliente> _clientes = [];
@@ -37,7 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _carregarDados() async {
     setState(() {
       _loading = true;
-      // erro silenciado
+      _erro = null;
     });
 
     final api = context.read<ApiService>();
@@ -65,155 +65,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _loading = false;
       });
     } catch (e) {
-      // Usar dados mock quando a API nao esta disponivel
       setState(() {
-        _processos = _processosMock();
-        _clientes = _clientesMock();
-        _prazos = _prazosMock();
-        _resumoFinanceiro = FinanceiroResumo(
-          pendente: 45750.00,
-          pago: 128300.00,
-          total: 174050.00,
-        );
         _loading = false;
-        // erro silenciado // Silencia o erro, mostra dados mock
+        _erro = 'Erro ao carregar dados: $e';
       });
     }
-  }
-
-  // ── Dados mock ──────────────────────────────────────────────────────
-
-  List<Processo> _processosMock() {
-    final agora = DateTime.now();
-    return [
-      Processo(
-        id: 1,
-        cnj: '0001234-56.2025.8.26.0100',
-        numeroLimpo: '00012345620258260100',
-        tribunal: 'tjsp',
-        aliasTribunal: 'TJSP',
-        classeNome: 'Procedimento Comum Civel',
-        status: 'ativo',
-        createdAt: agora.subtract(const Duration(days: 30)),
-        updatedAt: agora,
-      ),
-      Processo(
-        id: 2,
-        cnj: '0005678-90.2024.5.02.0001',
-        numeroLimpo: '00056789020245020001',
-        tribunal: 'trt2',
-        aliasTribunal: 'TRT2',
-        classeNome: 'Reclamacao Trabalhista',
-        status: 'ativo',
-        createdAt: agora.subtract(const Duration(days: 60)),
-        updatedAt: agora.subtract(const Duration(days: 1)),
-      ),
-      Processo(
-        id: 3,
-        cnj: '0009876-12.2025.8.19.0001',
-        numeroLimpo: '00098761220258190001',
-        tribunal: 'tjrj',
-        aliasTribunal: 'TJRJ',
-        classeNome: 'Execucao Fiscal',
-        status: 'ativo',
-        createdAt: agora.subtract(const Duration(days: 15)),
-        updatedAt: agora.subtract(const Duration(days: 2)),
-      ),
-      Processo(
-        id: 4,
-        cnj: '0003210-44.2024.8.13.0024',
-        numeroLimpo: '00032104420248130024',
-        tribunal: 'tjmg',
-        aliasTribunal: 'TJMG',
-        classeNome: 'Mandado de Seguranca',
-        status: 'ativo',
-        createdAt: agora.subtract(const Duration(days: 90)),
-        updatedAt: agora.subtract(const Duration(days: 5)),
-      ),
-      Processo(
-        id: 5,
-        cnj: '0007777-88.2025.8.21.0001',
-        numeroLimpo: '00077778820258210001',
-        tribunal: 'tjrs',
-        aliasTribunal: 'TJRS',
-        classeNome: 'Acao de Alimentos',
-        status: 'ativo',
-        createdAt: agora.subtract(const Duration(days: 7)),
-        updatedAt: agora,
-      ),
-    ];
-  }
-
-  List<Cliente> _clientesMock() {
-    final agora = DateTime.now();
-    return List.generate(
-      42,
-      (i) => Cliente(
-        id: i + 1,
-        nome: 'Cliente ${i + 1}',
-        cpfCnpj: '000.000.000-${i.toString().padLeft(2, '0')}',
-        telefone: '(11) 99999-${i.toString().padLeft(4, '0')}',
-        createdAt: agora.subtract(Duration(days: i * 3)),
-        updatedAt: agora,
-      ),
-    );
-  }
-
-  List<Prazo> _prazosMock() {
-    final agora = DateTime.now();
-    final fmt = DateFormat('yyyy-MM-dd');
-    return [
-      Prazo(
-        id: 1,
-        processoId: 1,
-        tipo: 'contestacao',
-        descricao: 'Prazo para contestacao - Proc. 0001234-56',
-        dataLimite: fmt.format(agora.add(const Duration(days: 2))),
-        status: 'pendente',
-        createdAt: agora,
-        updatedAt: agora,
-      ),
-      Prazo(
-        id: 2,
-        processoId: 2,
-        tipo: 'recurso',
-        descricao: 'Prazo para recurso ordinario - Proc. 0005678-90',
-        dataLimite: fmt.format(agora.add(const Duration(days: 5))),
-        status: 'pendente',
-        createdAt: agora,
-        updatedAt: agora,
-      ),
-      Prazo(
-        id: 3,
-        processoId: 3,
-        tipo: 'audiencia',
-        descricao: 'Audiencia de conciliacao - Proc. 0009876-12',
-        dataLimite: fmt.format(agora.add(const Duration(days: 10))),
-        status: 'pendente',
-        createdAt: agora,
-        updatedAt: agora,
-      ),
-      Prazo(
-        id: 4,
-        processoId: 4,
-        tipo: 'manifestacao',
-        descricao: 'Manifestacao sobre pericia - Proc. 0003210-44',
-        dataLimite: fmt.format(agora.add(const Duration(days: 1))),
-        status: 'pendente',
-        createdAt: agora,
-        updatedAt: agora,
-      ),
-      Prazo(
-        id: 5,
-        processoId: 5,
-        tipo: 'peticao',
-        descricao: 'Peticao inicial de alimentos - Proc. 0007777-88',
-        dataLimite: fmt.format(agora.add(const Duration(days: 14))),
-        status: 'pendente',
-        createdAt: agora,
-        updatedAt: agora,
-      ),
-    ];
   }
 
   // ── Saudacao baseada na hora ────────────────────────────────────────
@@ -273,6 +129,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: MugliaTheme.primary),
             )
+          : _erro != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cloud_off_rounded, size: 48, color: MugliaTheme.textMuted),
+                      const SizedBox(height: 16),
+                      Text(_erro!, style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _carregarDados,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Tentar novamente'),
+                      ),
+                    ],
+                  ),
+                )
           : RefreshIndicator(
               onRefresh: _carregarDados,
               color: MugliaTheme.primary,
