@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.database import engine, Base
-from app.routers import chat, clientes, financeiro, prazos, processos, tags, vindi, vindi_webhook
+from app.routers import agentes, chat, clientes, financeiro, prazos, processos, tags, vindi, vindi_webhook
 
 
 @asynccontextmanager
@@ -14,6 +14,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Muglia", version="1.0.0", lifespan=lifespan)
 
+app.include_router(agentes.router)
 app.include_router(chat.router)
 app.include_router(clientes.router)
 app.include_router(financeiro.router)

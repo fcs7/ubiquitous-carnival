@@ -23,6 +23,7 @@ class Usuario(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     conversas: Mapped[list["Conversa"]] = relationship(back_populates="usuario")
+    agentes_config: Mapped[list["AgenteConfig"]] = relationship(back_populates="usuario")
 
 
 # ──────────────────────────────────────────────
@@ -202,12 +203,14 @@ class Conversa(Base):
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), index=True)
     processo_id: Mapped[int | None] = mapped_column(ForeignKey("processos.id"), nullable=True, index=True)
     modelo_claude: Mapped[str] = mapped_column(String(50), default="claude-haiku-4-5-20251001")
+    agente_id: Mapped[int | None] = mapped_column(ForeignKey("agentes_config.id"), nullable=True, index=True)
     config_extra: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON com configs especificas
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     usuario: Mapped["Usuario"] = relationship(back_populates="conversas")
     processo: Mapped["Processo | None"] = relationship(back_populates="conversas")
+    agente_config: Mapped["AgenteConfig | None"] = relationship(back_populates="conversas")
     mensagens: Mapped[list["Mensagem"]] = relationship(back_populates="conversa", cascade="all, delete-orphan")
 
 
@@ -342,3 +345,44 @@ class TagEntidade(Base):
     entidade_id: Mapped[int] = mapped_column(Integer)
 
     tag: Mapped["Tag"] = relationship(back_populates="entidades")
+
+
+# ──────────────────────────────────────────────
+# Agentes configuraveis
+# ──────────────────────────────────────────────
+class AgenteConfig(Base):
+    __tablename__ = "agentes_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    nome: Mapped[str] = mapped_column(String(100))
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    instrucoes_sistema: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider: Mapped[str] = mapped_column(String(20), default="anthropic")  # anthropic, openai
+    modelo: Mapped[str] = mapped_column(String(50), default="claude-sonnet-4-5-20250514")
+    ferramentas_habilitadas: Mapped[str] = mapped_column(Text, default="[]")  # JSON list[str]
+    contexto_referencia: Mapped[str | None] = mapped_column(Text, nullable=True)
+    max_tokens: Mapped[int] = mapped_column(Integer, default=4096)
+    max_iteracoes_tool: Mapped[int] = mapped_column(Integer, default=10)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+
+    usuario: Mapped["Usuario"] = relationship(back_populates="agentes_config")
+    conversas: Mapped[list["Conversa"]] = relationship(back_populates="agente_config")
+
+
+class ToolExecution(Base):
+    __tablename__ = "tool_executions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversa_id: Mapped[int] = mapped_column(ForeignKey("conversas.id", ondelete="CASCADE"), index=True)
+    tool_name: Mapped[str] = mapped_column(String(100))
+    tool_use_id: Mapped[str] = mapped_column(String(100))
+    input_json: Mapped[str] = mapped_column(Text)
+    output_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    erro: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duracao_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    conversa: Mapped["Conversa"] = relationship()

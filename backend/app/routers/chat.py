@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from fastapi.responses import StreamingResponse
+
 from app.database import get_db
 from app.models import Conversa, Usuario
 from app.schemas import (
@@ -26,6 +28,7 @@ def criar_conversa(payload: ConversaCreate, db: Session = Depends(get_db)):
         usuario_id=payload.usuario_id,
         processo_id=payload.processo_id,
         modelo_claude=payload.modelo_claude,
+        agente_id=payload.agente_id,
     )
     db.add(conversa)
     db.commit()
@@ -55,16 +58,49 @@ def enviar_mensagem(
     payload: MensagemCreate,
     db: Session = Depends(get_db),
 ):
+    conversa = db.query(Conversa).filter(Conversa.id == conversa_id).first()
+    if not conversa:
+        raise HTTPException(status_code=404, detail="Conversa nao encontrada")
+
     try:
-        resultado = claude_chat(
-            db=db,
-            conversa_id=conversa_id,
-            mensagem_usuario=payload.mensagem,
-            modelo=payload.modelo,
-        )
+        if conversa.agente_id:
+            from app.services.agente_chat import chat_com_agente
+            resultado = chat_com_agente(
+                db=db,
+                conversa_id=conversa_id,
+                mensagem_usuario=payload.mensagem,
+            )
+        else:
+            resultado = claude_chat(
+                db=db,
+                conversa_id=conversa_id,
+                mensagem_usuario=payload.mensagem,
+                modelo=payload.modelo,
+            )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return resultado
+
+
+@router.post("/{conversa_id}/mensagens/stream")
+def stream_mensagem(
+    conversa_id: int,
+    payload: MensagemCreate,
+    db: Session = Depends(get_db),
+):
+    conversa = db.query(Conversa).filter(Conversa.id == conversa_id).first()
+    if not conversa:
+        raise HTTPException(status_code=404, detail="Conversa nao encontrada")
+
+    if not conversa.agente_id:
+        raise HTTPException(status_code=400, detail="Streaming so disponivel para conversas com agente")
+
+    from app.services.agente_chat import chat_com_agente_stream
+    return StreamingResponse(
+        chat_com_agente_stream(db, conversa_id, payload.mensagem),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.delete("/{conversa_id}", status_code=204)

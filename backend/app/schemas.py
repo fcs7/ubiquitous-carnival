@@ -186,6 +186,7 @@ class ConversaCreate(BaseModel):
     processo_id: int | None = None
     usuario_id: int
     modelo_claude: str = "claude-haiku-4-5-20251001"
+    agente_id: int | None = None
 
 
 class MensagemOut(BaseModel):
@@ -206,6 +207,7 @@ class ConversaOut(BaseModel):
     usuario_id: int
     processo_id: int | None
     modelo_claude: str
+    agente_id: int | None
     created_at: datetime
     updated_at: datetime
 
@@ -326,3 +328,62 @@ class TagEntidadeOut(BaseModel):
     entidade_id: int
 
     model_config = {"from_attributes": True}
+
+
+# -- Agentes --
+class AgenteConfigCreate(BaseModel):
+    nome: str
+    usuario_id: int
+    descricao: str | None = None
+    instrucoes_sistema: str | None = None
+    provider: str = "anthropic"
+    modelo: str = "claude-sonnet-4-5-20250514"
+    ferramentas_habilitadas: list[str] = []
+    contexto_referencia: str | None = None
+    max_tokens: int = 4096
+    max_iteracoes_tool: int = 10
+
+
+class AgenteConfigUpdate(BaseModel):
+    nome: str | None = None
+    descricao: str | None = None
+    instrucoes_sistema: str | None = None
+    provider: str | None = None
+    modelo: str | None = None
+    ferramentas_habilitadas: list[str] | None = None
+    contexto_referencia: str | None = None
+    max_tokens: int | None = None
+    max_iteracoes_tool: int | None = None
+    ativo: bool | None = None
+
+
+class AgenteConfigOut(BaseModel):
+    id: int
+    usuario_id: int
+    nome: str
+    descricao: str | None
+    instrucoes_sistema: str | None
+    provider: str
+    modelo: str
+    ferramentas_habilitadas: list[str]
+    contexto_referencia: str | None
+    max_tokens: int
+    max_iteracoes_tool: int
+    ativo: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_orm_with_tools(cls, obj):
+        import json as _json
+        data = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
+        data["ferramentas_habilitadas"] = _json.loads(data.get("ferramentas_habilitadas", "[]"))
+        return cls(**data)
+
+
+class FerramentaDisponivel(BaseModel):
+    nome: str
+    descricao_ui: str
+    categoria: str

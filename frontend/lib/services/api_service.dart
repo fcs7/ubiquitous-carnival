@@ -143,6 +143,45 @@ class ApiService {
     await _client.delete(Uri.parse('$baseUrl/conversas/$id'));
   }
 
+  // ── Agentes ─────────────────────────────────
+  Future<List<dynamic>> getAgentes({int? usuarioId}) async {
+    final query = usuarioId != null ? '?usuario_id=$usuarioId' : '';
+    final resp = await _client.get(Uri.parse('$baseUrl/agentes/$query'));
+    return _handleList(resp);
+  }
+
+  Future<Map<String, dynamic>> getAgente(int id) async {
+    final resp = await _client.get(Uri.parse('$baseUrl/agentes/$id'));
+    return _handleMap(resp);
+  }
+
+  Future<Map<String, dynamic>> criarAgente(Map<String, dynamic> data) async {
+    final resp = await _client.post(
+      Uri.parse('$baseUrl/agentes/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    return _handleMap(resp);
+  }
+
+  Future<Map<String, dynamic>> atualizarAgente(int id, Map<String, dynamic> data) async {
+    final resp = await _client.put(
+      Uri.parse('$baseUrl/agentes/$id'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    return _handleMap(resp);
+  }
+
+  Future<void> deletarAgente(int id) async {
+    await _client.delete(Uri.parse('$baseUrl/agentes/$id'));
+  }
+
+  Future<List<dynamic>> getFerramentasDisponiveis() async {
+    final resp = await _client.get(Uri.parse('$baseUrl/agentes/ferramentas/disponiveis'));
+    return _handleList(resp);
+  }
+
   // ── Health ────────────────────────────────
   Future<bool> healthCheck() async {
     try {
