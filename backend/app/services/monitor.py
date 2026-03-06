@@ -1,11 +1,17 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models import Processo, Movimento
+from app.models import Processo, Movimento, ProcessoParte, Cliente
 from app.services.datajud import consultar_processo
 from app.services.ia import traduzir_movimento
+from app.services.whatsapp import enviar_mensagem, formatar_notificacao
 from app.database import SessionLocal
+
+logger = logging.getLogger(__name__)
+
+PAPEIS_NOTIFICAVEIS = ["autor", "advogado"]
 
 
 def verificar_processo(db: Session, processo: Processo) -> list[Movimento]:
@@ -54,7 +60,34 @@ def verificar_processo(db: Session, processo: Processo) -> list[Movimento]:
         db.add(movimento)
         novos.append(movimento)
 
-    processo.ultima_verificacao = datetime.utcnow()
+    # Notificar clientes do escritorio via WhatsApp (apenas autor/advogado)
+    if novos:
+        partes = (
+            db.query(Cliente)
+            .join(ProcessoParte, ProcessoParte.cliente_id == Cliente.id)
+            .filter(
+                ProcessoParte.processo_id == processo.id,
+                ProcessoParte.papel.in_(PAPEIS_NOTIFICAVEIS),
+            )
+            .all()
+        )
+        for mov in novos:
+            msg = formatar_notificacao(processo.cnj, mov.resumo_ia or mov.nome)
+            enviou = False
+            for cliente in partes:
+                if not cliente.telefone:
+                    continue
+                try:
+                    if enviar_mensagem(cliente.telefone, msg):
+                        enviou = True
+                except Exception:
+                    logger.warning(
+                        "Falha ao enviar WhatsApp para %s (processo %s)",
+                        cliente.telefone, processo.cnj, exc_info=True,
+                    )
+            mov.notificado = enviou or not partes
+
+    processo.ultima_verificacao = datetime.now(timezone.utc)
     db.commit()
     return novos
 

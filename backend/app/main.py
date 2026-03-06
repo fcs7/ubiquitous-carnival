@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.database import engine, Base
-from app.routers import agentes, chat, clientes, financeiro, prazos, processos, tags, vindi, vindi_webhook
+from app.routers import agentes, chat, clientes, financeiro, prazos, processos, tags, vindi, vindi_webhook, whatsapp
 
 
 @asynccontextmanager
@@ -23,6 +23,7 @@ app.include_router(processos.router)
 app.include_router(vindi_webhook.router)
 app.include_router(vindi.router)
 app.include_router(tags.router)
+app.include_router(whatsapp.router)
 
 
 @app.get("/health")

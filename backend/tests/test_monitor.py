@@ -78,7 +78,7 @@ def test_detecta_movimentos_novos(mock_datajud, mock_ia, db):
     assert m1.data_hora == datetime(2024, 6, 1, 10, 0, 0)
     assert m1.complementos == "Por sorteio"
     assert m1.resumo_ia == "Resumo simples"
-    assert m1.notificado is False
+    assert m1.notificado is True  # marcado apos tentativa de notificacao
 
     # Verifica segunda
     m2 = db.query(Movimento).filter_by(codigo=2).first()
