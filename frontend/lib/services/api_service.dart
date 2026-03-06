@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:8000');
 
   final http.Client _client;
 
