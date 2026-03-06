@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import UTC, datetime, date
 from sqlalchemy import (
     String, Integer, Float, Boolean, DateTime, Date,
     ForeignKey, Text, UniqueConstraint, Numeric,
@@ -253,8 +253,8 @@ class VindiCustomer(Base):
     dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True, index=True)
     status_sync: Mapped[str] = mapped_column(String(20), default="pendente", index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     cliente: Mapped["Cliente | None"] = relationship(back_populates="vindi_customers")
     subscriptions: Mapped[list["VindiSubscription"]] = relationship(back_populates="vindi_customer")
@@ -270,8 +270,8 @@ class VindiProduct(Base):
     descricao: Mapped[str | None] = mapped_column(String(255), nullable=True)
     valor: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     subscriptions: Mapped[list["VindiSubscription"]] = relationship(back_populates="vindi_product")
 
@@ -281,15 +281,15 @@ class VindiSubscription(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     vindi_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
-    vindi_customer_id: Mapped[int] = mapped_column(ForeignKey("vindi_customers.id"), index=True)
+    vindi_customer_id: Mapped[int | None] = mapped_column(ForeignKey("vindi_customers.id"), nullable=True, index=True)
     vindi_product_id: Mapped[int | None] = mapped_column(ForeignKey("vindi_products.id"), nullable=True, index=True)
     processo_id: Mapped[int | None] = mapped_column(ForeignKey("processos.id"), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(30), default="active")
     dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
-    vindi_customer: Mapped["VindiCustomer"] = relationship(back_populates="subscriptions")
+    vindi_customer: Mapped["VindiCustomer | None"] = relationship(back_populates="subscriptions")
     vindi_product: Mapped["VindiProduct | None"] = relationship(back_populates="subscriptions")
     processo: Mapped["Processo | None"] = relationship(back_populates="vindi_subscriptions")
     bills: Mapped[list["VindiBill"]] = relationship(back_populates="vindi_subscription")
@@ -300,7 +300,7 @@ class VindiBill(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     vindi_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
-    vindi_customer_id: Mapped[int] = mapped_column(ForeignKey("vindi_customers.id"), index=True)
+    vindi_customer_id: Mapped[int | None] = mapped_column(ForeignKey("vindi_customers.id"), nullable=True, index=True)
     vindi_subscription_id: Mapped[int | None] = mapped_column(ForeignKey("vindi_subscriptions.id"), nullable=True, index=True)
     valor: Mapped[float] = mapped_column(Numeric(12, 2))
     status: Mapped[str] = mapped_column(String(30), default="pending")
@@ -308,10 +308,10 @@ class VindiBill(Base):
     data_pagamento: Mapped[date | None] = mapped_column(Date, nullable=True)
     financeiro_id: Mapped[int | None] = mapped_column(ForeignKey("financeiro.id"), nullable=True, index=True)
     dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
-    vindi_customer: Mapped["VindiCustomer"] = relationship(back_populates="bills")
+    vindi_customer: Mapped["VindiCustomer | None"] = relationship(back_populates="bills")
     vindi_subscription: Mapped["VindiSubscription | None"] = relationship(back_populates="bills")
     financeiro: Mapped["Financeiro | None"] = relationship(back_populates="vindi_bill")
 
@@ -325,7 +325,7 @@ class Tag(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(100), unique=True)
     cor: Mapped[str | None] = mapped_column(String(7), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     entidades: Mapped[list["TagEntidade"]] = relationship(back_populates="tag", cascade="all, delete-orphan")
 

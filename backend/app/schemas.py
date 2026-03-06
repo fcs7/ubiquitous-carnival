@@ -259,7 +259,7 @@ class VindiProductOut(BaseModel):
 class VindiSubscriptionOut(BaseModel):
     id: int
     vindi_id: int
-    vindi_customer_id: int
+    vindi_customer_id: int | None
     vindi_product_id: int | None
     processo_id: int | None
     status: str
@@ -272,7 +272,7 @@ class VindiSubscriptionOut(BaseModel):
 class VindiBillOut(BaseModel):
     id: int
     vindi_id: int
-    vindi_customer_id: int
+    vindi_customer_id: int | None
     vindi_subscription_id: int | None
     valor: float
     status: str

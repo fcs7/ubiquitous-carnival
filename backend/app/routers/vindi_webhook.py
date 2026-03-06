@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 
@@ -33,7 +35,7 @@ async def receber_webhook_vindi(request: Request, db: Session = Depends(get_db))
         if not validar_signature(body, signature, settings.vindi_webhook_secret):
             raise HTTPException(status_code=401, detail="Signature invalida")
 
-    payload = await request.json()
+    payload = json.loads(body)
     event_type = payload.get("event", {}).get("type", "")
     data = payload.get("event", {}).get("data", {})
 
