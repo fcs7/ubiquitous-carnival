@@ -124,7 +124,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getConversaMensagens(int id) async {
-    final resp = await _client.get(Uri.parse('$baseUrl/conversas/$id/mensagens'));
+    final resp = await _client.get(Uri.parse('$baseUrl/conversas/$id'));
     return _handleMap(resp);
   }
 

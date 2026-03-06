@@ -2,13 +2,22 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
+from app.models import Usuario
 from app.routers import agentes, chat, clientes, financeiro, prazos, processos, tags, vindi, vindi_webhook, whatsapp
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # Criar usuario padrao se nao existir
+    db = SessionLocal()
+    try:
+        if not db.query(Usuario).first():
+            db.add(Usuario(nome="Admin Muglia", email="admin@muglia.com.br"))
+            db.commit()
+    finally:
+        db.close()
     yield
 
 

@@ -114,8 +114,16 @@ class _ConversaScreenState extends State<ConversaScreen>
       final api = context.read<ApiService>();
       final result = await api.enviarMensagem(widget.conversaId, texto);
 
-      // A API retorna a mensagem do assistente
-      final resposta = Mensagem.fromJson(result);
+      // A API retorna ChatResponse: {resposta, modelo, tokens_input, tokens_output}
+      final resposta = Mensagem(
+        id: DateTime.now().millisecondsSinceEpoch,
+        conversaId: widget.conversaId,
+        role: 'assistant',
+        conteudo: result['resposta'] ?? '',
+        tokensInput: result['tokens_input'],
+        tokensOutput: result['tokens_output'],
+        createdAt: DateTime.now(),
+      );
 
       setState(() {
         _mensagens.add(resposta);
