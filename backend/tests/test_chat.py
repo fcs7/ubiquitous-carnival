@@ -71,15 +71,20 @@ def test_enviar_mensagem(client, db):
     resp = client.post("/conversas/", json={"titulo": "Chat", "usuario_id": usuario.id})
     cid = resp.json()["id"]
 
-    # Mock da API Anthropic
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="Resposta do assistente juridico")]
-    mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
+    # Mock do provider
+    from app.services.providers.base import ProviderResponse
 
-    with patch("app.services.claude_chat.get_anthropic_client") as mock_get_client:
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-        mock_get_client.return_value = mock_client
+    mock_prov = MagicMock()
+    mock_prov.chat.return_value = ProviderResponse(
+        text="Resposta do assistente juridico",
+        tool_calls=[],
+        stop_reason="end_turn",
+        input_tokens=100,
+        output_tokens=50,
+    )
+
+    with patch("app.services.claude_chat.get_provider") as mock_get_client:
+        mock_get_client.return_value = mock_prov
 
         resp = client.post(f"/conversas/{cid}/mensagens", json={
             "mensagem": "Qual o prazo para contestacao no CPC?",

@@ -1,5 +1,7 @@
 from datetime import date, datetime
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 
 # -- Clientes --
@@ -336,25 +338,47 @@ class AgenteConfigCreate(BaseModel):
     usuario_id: int
     descricao: str | None = None
     instrucoes_sistema: str | None = None
-    provider: str = "anthropic"
+    provider: Literal["anthropic", "openai"] = "anthropic"
     modelo: str = "claude-sonnet-4-5-20250514"
     ferramentas_habilitadas: list[str] = []
     contexto_referencia: str | None = None
-    max_tokens: int = 4096
-    max_iteracoes_tool: int = 10
+    max_tokens: int = Field(default=4096, ge=256, le=64000)
+    max_iteracoes_tool: int = Field(default=10, ge=1, le=50)
+
+    @field_validator("ferramentas_habilitadas")
+    @classmethod
+    def validar_ferramentas(cls, v):
+        if not v:
+            return v
+        from app.services.ferramentas import FERRAMENTAS_DISPONIVEIS
+        invalidas = [f for f in v if f not in FERRAMENTAS_DISPONIVEIS]
+        if invalidas:
+            raise ValueError(f"Ferramentas desconhecidas: {invalidas}")
+        return v
 
 
 class AgenteConfigUpdate(BaseModel):
     nome: str | None = None
     descricao: str | None = None
     instrucoes_sistema: str | None = None
-    provider: str | None = None
+    provider: Literal["anthropic", "openai"] | None = None
     modelo: str | None = None
     ferramentas_habilitadas: list[str] | None = None
     contexto_referencia: str | None = None
-    max_tokens: int | None = None
-    max_iteracoes_tool: int | None = None
+    max_tokens: int | None = Field(default=None, ge=256, le=64000)
+    max_iteracoes_tool: int | None = Field(default=None, ge=1, le=50)
     ativo: bool | None = None
+
+    @field_validator("ferramentas_habilitadas")
+    @classmethod
+    def validar_ferramentas(cls, v):
+        if not v:
+            return v
+        from app.services.ferramentas import FERRAMENTAS_DISPONIVEIS
+        invalidas = [f for f in v if f not in FERRAMENTAS_DISPONIVEIS]
+        if invalidas:
+            raise ValueError(f"Ferramentas desconhecidas: {invalidas}")
+        return v
 
 
 class AgenteConfigOut(BaseModel):
@@ -379,8 +403,11 @@ class AgenteConfigOut(BaseModel):
     def from_orm_with_tools(cls, obj):
         import json as _json
         data = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
-        data["ferramentas_habilitadas"] = _json.loads(data.get("ferramentas_habilitadas", "[]"))
-        return cls(**data)
+        try:
+            data["ferramentas_habilitadas"] = _json.loads(data.get("ferramentas_habilitadas") or "[]")
+        except _json.JSONDecodeError:
+            data["ferramentas_habilitadas"] = []
+        return cls.model_validate(data)
 
 
 class FerramentaDisponivel(BaseModel):

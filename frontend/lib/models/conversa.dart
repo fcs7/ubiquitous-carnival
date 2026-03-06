@@ -3,6 +3,7 @@ class Conversa {
   final String? titulo;
   final int usuarioId;
   final int? processoId;
+  final int? agenteId;
   final String modeloClaude;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -13,6 +14,7 @@ class Conversa {
     this.titulo,
     required this.usuarioId,
     this.processoId,
+    this.agenteId,
     required this.modeloClaude,
     required this.createdAt,
     required this.updatedAt,
@@ -25,6 +27,7 @@ class Conversa {
       titulo: json['titulo'],
       usuarioId: json['usuario_id'],
       processoId: json['processo_id'],
+      agenteId: json['agente_id'],
       modeloClaude: json['modelo_claude'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),

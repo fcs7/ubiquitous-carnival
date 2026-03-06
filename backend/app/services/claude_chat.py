@@ -1,8 +1,7 @@
 import json
-import anthropic
 from sqlalchemy.orm import Session
-from app.config import settings
 from app.models import Conversa, Mensagem, Processo, ProcessoParte, Movimento, ConfigEscritorio
+from app.services.providers import get_provider
 
 SYSTEM_PROMPT_JURIDICO = """Voce eh um assistente juridico especializado em direito brasileiro.
 
@@ -18,14 +17,11 @@ Regras:
 
 Voce tem acesso aos dados do processo e cliente no contexto abaixo."""
 
-_client = None
-
-
-def get_anthropic_client():
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    return _client
+def _detectar_provider(modelo: str) -> str:
+    """Detecta o provider pelo nome do modelo."""
+    if modelo.startswith("gpt-") or modelo.startswith("o1") or modelo.startswith("o3"):
+        return "openai"
+    return "anthropic"
 
 
 def montar_contexto_processo(db: Session, processo_id: int) -> str:
@@ -97,6 +93,7 @@ def chat(
         raise ValueError("Conversa nao encontrada")
 
     modelo_usar = modelo or conversa.modelo_claude
+    provider = get_provider(_detectar_provider(modelo_usar))
 
     # Monta system prompt
     system_parts = [SYSTEM_PROMPT_JURIDICO]
@@ -109,36 +106,32 @@ def chat(
     historico = carregar_historico(db, conversa_id)
     historico.append({"role": "user", "content": mensagem_usuario})
 
-    # Chama Claude API
-    client = get_anthropic_client()
-    response = client.messages.create(
+    response = provider.chat(
         model=modelo_usar,
-        max_tokens=4096,
         system=system_prompt,
         messages=historico,
+        max_tokens=4096,
     )
-
-    resposta_texto = response.content[0].text
 
     # Salva mensagens no banco
     msg_user = Mensagem(
         conversa_id=conversa_id,
         role="user",
         conteudo=mensagem_usuario,
-        tokens_input=response.usage.input_tokens,
+        tokens_input=response.input_tokens,
     )
     msg_assistant = Mensagem(
         conversa_id=conversa_id,
         role="assistant",
-        conteudo=resposta_texto,
-        tokens_output=response.usage.output_tokens,
+        conteudo=response.text,
+        tokens_output=response.output_tokens,
     )
     db.add_all([msg_user, msg_assistant])
     db.commit()
 
     return {
-        "resposta": resposta_texto,
+        "resposta": response.text,
         "modelo": modelo_usar,
-        "tokens_input": response.usage.input_tokens,
-        "tokens_output": response.usage.output_tokens,
+        "tokens_input": response.input_tokens,
+        "tokens_output": response.output_tokens,
     }

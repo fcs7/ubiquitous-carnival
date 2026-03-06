@@ -117,3 +117,81 @@ def test_resumo_financeiro(db):
     assert "R$" in resultado
     assert "PENDENTE" in resultado
     assert "honorario" in resultado
+
+
+# ──────────────────────────────────────────────
+# T5 — buscar_cliente: busca vazia e multiplos resultados
+# ──────────────────────────────────────────────
+def test_buscar_cliente_busca_vazia(db):
+    """busca vazia retorna mensagem de erro"""
+    resultado = executar_buscar_cliente({"busca": ""}, db)
+    assert "vazio" in resultado.lower()
+
+
+def test_buscar_cliente_busca_espacos(db):
+    """busca com apenas espacos retorna mensagem de erro"""
+    resultado = executar_buscar_cliente({"busca": "   "}, db)
+    assert "vazio" in resultado.lower()
+
+
+def test_buscar_cliente_multiplos_resultados(db):
+    """busca por nome parcial com multiplos matches lista todos"""
+    for i, nome in enumerate(["Joao Silva", "Joao Santos", "Joao Souza"]):
+        db.add(Cliente(nome=nome, cpf_cnpj=f"000.000.000-0{i}", telefone="11999999999"))
+    db.commit()
+
+    resultado = executar_buscar_cliente({"busca": "Joao"}, db)
+    assert "3 clientes" in resultado or "Encontrados" in resultado
+
+
+# ──────────────────────────────────────────────
+# T6 — calcular_prazo: data invalida e dias=0
+# ──────────────────────────────────────────────
+def test_calcular_prazo_data_invalida(db):
+    resultado = executar_calcular_prazo({"data_inicio": "invalido", "dias": 5}, db)
+    assert "invalida" in resultado.lower()
+
+
+def test_calcular_prazo_sem_data(db):
+    resultado = executar_calcular_prazo({"dias": 5}, db)
+    assert "invalida" in resultado.lower()
+
+
+def test_calcular_prazo_dias_zero(db):
+    resultado = executar_calcular_prazo({"data_inicio": "2026-03-06", "dias": 0}, db)
+    assert "positivo" in resultado.lower()
+
+
+def test_calcular_prazo_inicio_sabado(db):
+    """prazo iniciando no sabado deve ajustar para segunda"""
+    resultado = executar_calcular_prazo({"data_inicio": "2026-03-07", "dias": 1, "tipo": "uteis"}, db)
+    assert "efetivo" in resultado.lower() or "dia util" in resultado.lower()
+
+
+# ──────────────────────────────────────────────
+# T7 — listar_prazos com prazo vencido
+# ──────────────────────────────────────────────
+def test_listar_prazos_vencido(db):
+    """prazo com data no passado deve mostrar VENCIDO"""
+    processo = Processo(
+        cnj="0000001-23.2026.8.26.0100",
+        numero_limpo="00000012320268260100",
+        tribunal="TJSP",
+        alias_tribunal="tjsp",
+        status="ativo",
+    )
+    db.add(processo)
+    db.commit()
+
+    prazo = Prazo(
+        processo_id=processo.id,
+        tipo="contestacao",
+        descricao="Prazo teste vencido",
+        data_limite=date(2025, 1, 1),
+        status="pendente",
+    )
+    db.add(prazo)
+    db.commit()
+
+    resultado = executar_listar_prazos({"processo_id": processo.id}, db)
+    assert "VENCIDO" in resultado

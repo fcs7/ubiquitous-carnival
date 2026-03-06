@@ -60,7 +60,7 @@ def _executar_ferramenta(tool_name: str, tool_input: dict, tool_use_id: str, db:
         tool_name=tool_name,
         tool_use_id=tool_use_id,
         input_json=json.dumps(tool_input, ensure_ascii=False),
-        output_json=resultado if not erro else None,
+        output_json=json.dumps({"resultado": resultado}, ensure_ascii=False) if not erro else None,
         erro=erro,
         duracao_ms=duracao,
     )
@@ -84,7 +84,10 @@ def chat_com_agente(
         raise ValueError("Conversa nao tem agente configurado")
 
     provider = get_provider(agente.provider)
-    ferramentas = json.loads(agente.ferramentas_habilitadas)
+    try:
+        ferramentas = json.loads(agente.ferramentas_habilitadas or "[]")
+    except json.JSONDecodeError:
+        ferramentas = []
     tool_schemas = _obter_tool_schemas(ferramentas)
 
     system_prompt = montar_system_prompt_agente(agente, db, conversa.processo_id)
@@ -96,53 +99,62 @@ def chat_com_agente(
     total_input = 0
     total_output = 0
 
-    while iteracao < agente.max_iteracoes_tool:
-        response = provider.chat(
-            model=agente.modelo,
-            system=system_prompt,
-            messages=historico,
-            tools=tool_schemas if tool_schemas else None,
-            max_tokens=agente.max_tokens,
-        )
-
-        total_input += response.input_tokens
-        total_output += response.output_tokens
-
-        if response.stop_reason == "end_turn":
-            texto_acumulado += response.text
-            break
-
-        if response.stop_reason == "tool_use":
-            texto_acumulado += response.text
-
-            # Monta conteudo do assistente com tool calls para o historico
-            assistant_content = provider.format_assistant_with_tools(response.text, response.tool_calls)
-            historico.append({"role": "assistant", "content": assistant_content})
-
-            # Executa ferramentas
-            tool_results = []
-            for tc in response.tool_calls:
-                resultado = _executar_ferramenta(tc.name, tc.input, tc.id, db, conversa_id)
-                tool_results.append(provider.format_tool_result_message(tc.id, resultado))
-
-            historico.append({"role": "user", "content": tool_results})
-
-        iteracao += 1
-
     msg_user = Mensagem(
         conversa_id=conversa_id,
         role="user",
         conteudo=mensagem_usuario,
-        tokens_input=total_input,
     )
-    msg_assistant = Mensagem(
-        conversa_id=conversa_id,
-        role="assistant",
-        conteudo=texto_acumulado,
-        tokens_output=total_output,
-    )
-    db.add_all([msg_user, msg_assistant])
-    db.commit()
+
+    try:
+        while iteracao < agente.max_iteracoes_tool:
+            response = provider.chat(
+                model=agente.modelo,
+                system=system_prompt,
+                messages=historico,
+                tools=tool_schemas if tool_schemas else None,
+                max_tokens=agente.max_tokens,
+            )
+
+            total_input += response.input_tokens
+            total_output += response.output_tokens
+
+            if response.stop_reason == "end_turn":
+                texto_acumulado += response.text or ""
+                break
+            elif response.stop_reason == "tool_use":
+                texto_acumulado += response.text
+
+                # Monta conteudo do assistente com tool calls para o historico
+                assistant_content = provider.format_assistant_with_tools(response.text, response.tool_calls)
+                historico.append({"role": "assistant", "content": assistant_content})
+
+                # Executa ferramentas
+                tool_results = []
+                for tc in response.tool_calls:
+                    resultado = _executar_ferramenta(tc.name, tc.input, tc.id, db, conversa_id)
+                    tool_results.append(provider.format_tool_result_message(tc.id, resultado))
+
+                historico.append({"role": "user", "content": tool_results})
+            else:
+                # stop_reason desconhecido (ex: "max_tokens")
+                texto_acumulado += response.text or ""
+                break
+
+            iteracao += 1
+
+        msg_user.tokens_input = total_input
+        msg_assistant = Mensagem(
+            conversa_id=conversa_id,
+            role="assistant",
+            conteudo=texto_acumulado,
+            tokens_output=total_output,
+        )
+        db.add_all([msg_user, msg_assistant])
+        db.commit()
+    except Exception:
+        db.add(msg_user)
+        db.commit()
+        raise
 
     return {
         "resposta": texto_acumulado,
@@ -168,7 +180,10 @@ def chat_com_agente_stream(
         return
 
     provider = get_provider(agente.provider)
-    ferramentas = json.loads(agente.ferramentas_habilitadas)
+    try:
+        ferramentas = json.loads(agente.ferramentas_habilitadas or "[]")
+    except json.JSONDecodeError:
+        ferramentas = []
     tool_schemas = _obter_tool_schemas(ferramentas)
 
     system_prompt = montar_system_prompt_agente(agente, db, conversa.processo_id)
@@ -180,58 +195,69 @@ def chat_com_agente_stream(
     total_input = 0
     total_output = 0
 
-    while iteracao < agente.max_iteracoes_tool:
-        response = provider.chat(
-            model=agente.modelo,
-            system=system_prompt,
-            messages=historico,
-            tools=tool_schemas if tool_schemas else None,
-            max_tokens=agente.max_tokens,
-        )
-
-        total_input += response.input_tokens
-        total_output += response.output_tokens
-
-        if response.stop_reason == "end_turn":
-            texto_acumulado += response.text
-            if response.text:
-                yield f"data: {json.dumps({'tipo': 'texto', 'conteudo': response.text}, ensure_ascii=False)}\n\n"
-            break
-
-        if response.stop_reason == "tool_use":
-            if response.text:
-                texto_acumulado += response.text
-                yield f"data: {json.dumps({'tipo': 'texto', 'conteudo': response.text}, ensure_ascii=False)}\n\n"
-
-            for tc in response.tool_calls:
-                yield f"data: {json.dumps({'tipo': 'tool_inicio', 'tool': tc.name})}\n\n"
-
-            assistant_content = provider.format_assistant_with_tools(response.text, response.tool_calls)
-            historico.append({"role": "assistant", "content": assistant_content})
-
-            tool_results = []
-            for tc in response.tool_calls:
-                resultado = _executar_ferramenta(tc.name, tc.input, tc.id, db, conversa_id)
-                tool_results.append(provider.format_tool_result_message(tc.id, resultado))
-                yield f"data: {json.dumps({'tipo': 'tool_resultado', 'tool': tc.name})}\n\n"
-
-            historico.append({"role": "user", "content": tool_results})
-
-        iteracao += 1
-
     msg_user = Mensagem(
         conversa_id=conversa_id,
         role="user",
         conteudo=mensagem_usuario,
-        tokens_input=total_input,
     )
-    msg_assistant = Mensagem(
-        conversa_id=conversa_id,
-        role="assistant",
-        conteudo=texto_acumulado,
-        tokens_output=total_output,
-    )
-    db.add_all([msg_user, msg_assistant])
-    db.commit()
+
+    try:
+        while iteracao < agente.max_iteracoes_tool:
+            response = provider.chat(
+                model=agente.modelo,
+                system=system_prompt,
+                messages=historico,
+                tools=tool_schemas if tool_schemas else None,
+                max_tokens=agente.max_tokens,
+            )
+
+            total_input += response.input_tokens
+            total_output += response.output_tokens
+
+            if response.stop_reason == "end_turn":
+                texto_acumulado += response.text or ""
+                if response.text:
+                    yield f"data: {json.dumps({'tipo': 'texto', 'conteudo': response.text}, ensure_ascii=False)}\n\n"
+                break
+            elif response.stop_reason == "tool_use":
+                if response.text:
+                    texto_acumulado += response.text
+                    yield f"data: {json.dumps({'tipo': 'texto', 'conteudo': response.text}, ensure_ascii=False)}\n\n"
+
+                for tc in response.tool_calls:
+                    yield f"data: {json.dumps({'tipo': 'tool_inicio', 'tool': tc.name})}\n\n"
+
+                assistant_content = provider.format_assistant_with_tools(response.text, response.tool_calls)
+                historico.append({"role": "assistant", "content": assistant_content})
+
+                tool_results = []
+                for tc in response.tool_calls:
+                    resultado = _executar_ferramenta(tc.name, tc.input, tc.id, db, conversa_id)
+                    tool_results.append(provider.format_tool_result_message(tc.id, resultado))
+                    yield f"data: {json.dumps({'tipo': 'tool_resultado', 'tool': tc.name})}\n\n"
+
+                historico.append({"role": "user", "content": tool_results})
+            else:
+                # stop_reason desconhecido (ex: "max_tokens")
+                texto_acumulado += response.text or ""
+                if response.text:
+                    yield f"data: {json.dumps({'tipo': 'texto', 'conteudo': response.text}, ensure_ascii=False)}\n\n"
+                break
+
+            iteracao += 1
+
+        msg_user.tokens_input = total_input
+        msg_assistant = Mensagem(
+            conversa_id=conversa_id,
+            role="assistant",
+            conteudo=texto_acumulado,
+            tokens_output=total_output,
+        )
+        db.add_all([msg_user, msg_assistant])
+        db.commit()
+    except Exception:
+        db.add(msg_user)
+        db.commit()
+        raise
 
     yield f"data: {json.dumps({'tipo': 'fim', 'tokens_input': total_input, 'tokens_output': total_output})}\n\n"

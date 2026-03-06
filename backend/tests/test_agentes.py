@@ -64,7 +64,7 @@ def test_atualizar_agente(client, db):
     resp = client.post("/agentes/", json={"nome": "V1", "usuario_id": usuario.id})
     aid = resp.json()["id"]
 
-    resp = client.put(f"/agentes/{aid}", json={
+    resp = client.put(f"/agentes/{aid}?usuario_id={usuario.id}", json={
         "nome": "V2",
         "ferramentas_habilitadas": ["buscar_processo", "resumo_financeiro"],
         "instrucoes_sistema": "Foco em financeiro",
@@ -80,7 +80,7 @@ def test_deletar_agente(client, db):
     resp = client.post("/agentes/", json={"nome": "Del", "usuario_id": usuario.id})
     aid = resp.json()["id"]
 
-    resp = client.delete(f"/agentes/{aid}")
+    resp = client.delete(f"/agentes/{aid}?usuario_id={usuario.id}")
     assert resp.status_code == 204
 
     resp = client.get(f"/agentes/{aid}")

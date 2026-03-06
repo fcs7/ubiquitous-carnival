@@ -47,7 +47,7 @@ FERRAMENTAS_DISPONIVEIS: dict[str, dict] = {
     "resumo_financeiro": {
         "schema": SCHEMA_RESUMO_FINANCEIRO,
         "executor": executar_resumo_financeiro,
-        "descricao_ui": "Resume posicao financeira de um processo ou cliente",
+        "descricao_ui": "Resume posicao financeira de um processo especifico",
         "categoria": "financeiro",
     },
 }

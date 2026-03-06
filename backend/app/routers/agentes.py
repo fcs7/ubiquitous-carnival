@@ -66,8 +66,11 @@ def detalhe_agente(agente_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{agente_id}", response_model=AgenteConfigOut)
-def atualizar_agente(agente_id: int, payload: AgenteConfigUpdate, db: Session = Depends(get_db)):
-    agente = db.query(AgenteConfig).filter(AgenteConfig.id == agente_id).first()
+def atualizar_agente(agente_id: int, payload: AgenteConfigUpdate, usuario_id: int, db: Session = Depends(get_db)):
+    agente = db.query(AgenteConfig).filter(
+        AgenteConfig.id == agente_id,
+        AgenteConfig.usuario_id == usuario_id,
+    ).first()
     if not agente:
         raise HTTPException(status_code=404, detail="Agente nao encontrado")
 
@@ -84,8 +87,11 @@ def atualizar_agente(agente_id: int, payload: AgenteConfigUpdate, db: Session = 
 
 
 @router.delete("/{agente_id}", status_code=204)
-def deletar_agente(agente_id: int, db: Session = Depends(get_db)):
-    agente = db.query(AgenteConfig).filter(AgenteConfig.id == agente_id).first()
+def deletar_agente(agente_id: int, usuario_id: int, db: Session = Depends(get_db)):
+    agente = db.query(AgenteConfig).filter(
+        AgenteConfig.id == agente_id,
+        AgenteConfig.usuario_id == usuario_id,
+    ).first()
     if not agente:
         raise HTTPException(status_code=404, detail="Agente nao encontrado")
     db.delete(agente)

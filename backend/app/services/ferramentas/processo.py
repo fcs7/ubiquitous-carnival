@@ -20,6 +20,8 @@ SCHEMA_BUSCAR_PROCESSO = {
 
 def executar_buscar_processo(input_data: dict, db: Session) -> str:
     cnj = input_data.get("cnj", "").strip()
+    if not cnj:
+        return "Numero CNJ nao informado."
     processo = db.query(Processo).filter(Processo.cnj == cnj).first()
     if not processo:
         return f"Processo com CNJ {cnj} nao encontrado no sistema."
@@ -45,8 +47,10 @@ def executar_buscar_processo(input_data: dict, db: Session) -> str:
         linhas.append("")
         linhas.append("PARTES:")
         for p in partes:
-            cliente = p.cliente
-            linhas.append(f"  {p.papel.upper()}: {cliente.nome} (CPF/CNPJ: {cliente.cpf_cnpj})")
+            if p.cliente:
+                linhas.append(f"  {p.papel.upper()}: {p.cliente.nome} (CPF/CNPJ: {p.cliente.cpf_cnpj})")
+            else:
+                linhas.append(f"  {p.papel.upper()}: (cliente removido, ID {p.cliente_id})")
 
     return "\n".join(linhas)
 
@@ -72,8 +76,14 @@ SCHEMA_LISTAR_MOVIMENTOS = {
 
 
 def executar_listar_movimentos(input_data: dict, db: Session) -> str:
-    processo_id = input_data["processo_id"]
-    limite = input_data.get("limite", 20)
+    processo_id = input_data.get("processo_id")
+    if processo_id is None:
+        return "Campo obrigatorio 'processo_id' nao informado."
+    try:
+        processo_id = int(processo_id)
+    except (TypeError, ValueError):
+        return "Campo 'processo_id' deve ser um numero inteiro."
+    limite = min(max(int(input_data.get("limite", 20)), 1), 100)
 
     movimentos = (
         db.query(Movimento)

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from sqlalchemy.orm import Session
 from app.models import Financeiro
 
@@ -19,7 +20,13 @@ SCHEMA_RESUMO_FINANCEIRO = {
 
 
 def executar_resumo_financeiro(input_data: dict, db: Session) -> str:
-    processo_id = input_data["processo_id"]
+    processo_id = input_data.get("processo_id")
+    if processo_id is None:
+        return "Campo obrigatorio 'processo_id' nao informado."
+    try:
+        processo_id = int(processo_id)
+    except (TypeError, ValueError):
+        return "Campo 'processo_id' deve ser um numero inteiro."
 
     lancamentos = (
         db.query(Financeiro)
@@ -31,8 +38,8 @@ def executar_resumo_financeiro(input_data: dict, db: Session) -> str:
     if not lancamentos:
         return f"Nenhum lancamento financeiro para o processo ID {processo_id}."
 
-    total_pendente = sum(float(f.valor) for f in lancamentos if f.status == "pendente")
-    total_pago = sum(float(f.valor) for f in lancamentos if f.status == "pago")
+    total_pendente = sum((f.valor for f in lancamentos if f.status == "pendente"), Decimal("0"))
+    total_pago = sum((f.valor for f in lancamentos if f.status == "pago"), Decimal("0"))
 
     linhas = [
         f"FINANCEIRO DO PROCESSO #{processo_id}:",

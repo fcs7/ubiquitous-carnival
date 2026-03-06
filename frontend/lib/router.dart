@@ -8,6 +8,8 @@ import 'package:muglia/screens/financeiro/financeiro_screen.dart';
 import 'package:muglia/screens/prazos/prazos_screen.dart';
 import 'package:muglia/screens/chat/chat_screen.dart';
 import 'package:muglia/screens/chat/conversa_screen.dart';
+import 'package:muglia/screens/agentes/agentes_screen.dart';
+import 'package:muglia/screens/agentes/agente_form_screen.dart';
 import 'package:muglia/screens/documentos/documentos_screen.dart';
 import 'package:muglia/screens/configuracoes/configuracoes_screen.dart';
 
@@ -58,6 +60,20 @@ final router = GoRouter(
       path: '/chat/:id',
       builder: (context, state) => ConversaScreen(
         conversaId: int.parse(state.pathParameters['id']!),
+      ),
+    ),
+    GoRoute(
+      path: '/agentes',
+      builder: (context, state) => const AgentesScreen(),
+    ),
+    GoRoute(
+      path: '/agentes/novo',
+      builder: (context, state) => const AgenteFormScreen(),
+    ),
+    GoRoute(
+      path: '/agentes/:id',
+      builder: (context, state) => AgenteFormScreen(
+        agenteId: int.parse(state.pathParameters['id']!),
       ),
     ),
     GoRoute(

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import 'package:muglia/models/conversa.dart';
+import 'package:muglia/models/agente.dart';
 import 'package:muglia/services/api_service.dart';
 import 'package:muglia/theme/muglia_theme.dart';
 import 'package:muglia/widgets/muglia_scaffold.dart';
@@ -89,10 +90,24 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _abrirDialogNovaConversa() {
+  void _abrirDialogNovaConversa() async {
     final tituloCtrl = TextEditingController();
     String modeloSelecionado = 'claude-haiku-4-5-20251001';
     int? processoIdSelecionado;
+    AgenteConfig? agenteSelecionado;
+    List<AgenteConfig> agentes = [];
+
+    // Carrega agentes antes de abrir o dialog
+    try {
+      final api = context.read<ApiService>();
+      final lista = await api.getAgentes();
+      agentes = lista
+          .map((j) => AgenteConfig.fromJson(j))
+          .where((a) => a.ativo)
+          .toList();
+    } catch (_) {}
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
@@ -113,28 +128,73 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                // Selecao de agente
+                if (agentes.isNotEmpty) ...[
+                  DropdownButtonFormField<int?>(
+                    value: agenteSelecionado?.id,
+                    decoration: const InputDecoration(
+                      labelText: 'Agente (opcional)',
+                      prefixIcon: Icon(Icons.smart_toy_rounded),
+                    ),
+                    dropdownColor: MugliaTheme.surface,
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Sem agente (chat direto)'),
+                      ),
+                      ...agentes.map((a) => DropdownMenuItem<int?>(
+                            value: a.id,
+                            child: Text(a.nome),
+                          )),
+                    ],
+                    onChanged: (v) {
+                      setDialogState(() {
+                        if (v == null) {
+                          agenteSelecionado = null;
+                        } else {
+                          agenteSelecionado =
+                              agentes.firstWhere((a) => a.id == v);
+                          modeloSelecionado = agenteSelecionado!.modelo;
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                // Modelo — desabilitado se tem agente selecionado
                 DropdownButtonFormField<String>(
                   value: modeloSelecionado,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Modelo',
-                    prefixIcon: Icon(Icons.smart_toy_outlined),
+                    prefixIcon: const Icon(Icons.memory_rounded),
+                    enabled: agenteSelecionado == null,
                   ),
                   dropdownColor: MugliaTheme.surface,
                   items: const [
                     DropdownMenuItem(
                       value: 'claude-haiku-4-5-20251001',
-                      child: Text('Haiku (rapido)'),
+                      child: Text('Claude Haiku (rapido)'),
                     ),
                     DropdownMenuItem(
                       value: 'claude-sonnet-4-5-20250514',
-                      child: Text('Sonnet (avancado)'),
+                      child: Text('Claude Sonnet (avancado)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'gpt-4o-mini',
+                      child: Text('GPT-4o mini (rapido)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'gpt-4o',
+                      child: Text('GPT-4o (avancado)'),
                     ),
                   ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      setDialogState(() => modeloSelecionado = v);
-                    }
-                  },
+                  onChanged: agenteSelecionado != null
+                      ? null
+                      : (v) {
+                          if (v != null) {
+                            setDialogState(() => modeloSelecionado = v);
+                          }
+                        },
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -165,6 +225,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       : tituloCtrl.text.trim(),
                   processoId: processoIdSelecionado,
                   modelo: modeloSelecionado,
+                  agenteId: agenteSelecionado?.id,
                 );
               },
               icon: const Icon(Icons.add_rounded, size: 18),
@@ -180,6 +241,7 @@ class _ChatScreenState extends State<ChatScreen> {
     String? titulo,
     int? processoId,
     required String modelo,
+    int? agenteId,
   }) async {
     try {
       final api = context.read<ApiService>();
@@ -189,6 +251,7 @@ class _ChatScreenState extends State<ChatScreen> {
       };
       if (titulo != null) data['titulo'] = titulo;
       if (processoId != null) data['processo_id'] = processoId;
+      if (agenteId != null) data['agente_id'] = agenteId;
 
       final result = await api.criarConversa(data);
       final novaConversa = Conversa.fromJson(result);
@@ -208,12 +271,16 @@ class _ChatScreenState extends State<ChatScreen> {
   String _nomeModelo(String modelo) {
     if (modelo.contains('haiku')) return 'Haiku';
     if (modelo.contains('sonnet')) return 'Sonnet';
+    if (modelo.contains('gpt-4o-mini')) return 'GPT-4o mini';
+    if (modelo.contains('gpt-4o')) return 'GPT-4o';
+    if (modelo.contains('gpt-4')) return 'GPT-4';
     return modelo;
   }
 
   Color _corModelo(String modelo) {
     if (modelo.contains('haiku')) return MugliaTheme.accent;
     if (modelo.contains('sonnet')) return MugliaTheme.primaryLight;
+    if (modelo.contains('gpt')) return const Color(0xFF74AA9C);
     return MugliaTheme.textMuted;
   }
 
@@ -390,6 +457,23 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ),
                               ),
                             ),
+                            if (conversa.agenteId != null) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.smart_toy_rounded,
+                                size: 14,
+                                color: const Color(0xFFD4A574),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Agente',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: const Color(0xFFD4A574),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                             if (conversa.processoId != null) ...[
                               const SizedBox(width: 8),
                               Icon(

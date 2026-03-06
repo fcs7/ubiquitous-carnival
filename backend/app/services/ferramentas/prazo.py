@@ -40,25 +40,38 @@ def executar_calcular_prazo(input_data: dict, db: Session) -> str:
         return "Data de inicio invalida. Use formato AAAA-MM-DD."
 
     dias = input_data.get("dias", 15)
+    if not isinstance(dias, int) or dias <= 0:
+        return "Numero de dias deve ser um inteiro positivo."
+
     tipo = input_data.get("tipo", "uteis")
 
     if tipo == "corridos":
         data_final = data_inicio + timedelta(days=dias)
     else:
+        # Ajusta data de inicio para proximo dia util (CPC art. 224)
+        data_inicio_efetiva = data_inicio
+        while data_inicio_efetiva.weekday() >= 5:
+            data_inicio_efetiva += timedelta(days=1)
+
         dias_contados = 0
-        data_final = data_inicio
+        data_final = data_inicio_efetiva
         while dias_contados < dias:
             data_final += timedelta(days=1)
             if data_final.weekday() < 5:
                 dias_contados += 1
 
-    return (
+    resultado = (
         f"CALCULO DE PRAZO:\n"
         f"  Inicio: {data_inicio.strftime('%d/%m/%Y')} ({_dia_semana(data_inicio)})\n"
+    )
+    if tipo == "uteis" and data_inicio != data_inicio_efetiva:
+        resultado += f"  Inicio efetivo (proximo dia util): {data_inicio_efetiva.strftime('%d/%m/%Y')} ({_dia_semana(data_inicio_efetiva)})\n"
+    resultado += (
         f"  Prazo: {dias} dias {tipo}\n"
         f"  Vencimento: {data_final.strftime('%d/%m/%Y')} ({_dia_semana(data_final)})\n"
         f"  Nota: calculo nao considera feriados"
     )
+    return resultado
 
 
 SCHEMA_LISTAR_PRAZOS = {

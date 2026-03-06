@@ -25,9 +25,10 @@ def executar_buscar_cliente(input_data: dict, db: Session) -> str:
 
     cliente = db.query(Cliente).filter(Cliente.cpf_cnpj == busca).first()
     if not cliente:
+        busca_escaped = busca.replace("%", "\\%").replace("_", "\\_")
         clientes = (
             db.query(Cliente)
-            .filter(Cliente.nome.ilike(f"%{busca}%"))
+            .filter(Cliente.nome.ilike(f"%{busca_escaped}%"))
             .limit(5)
             .all()
         )
