@@ -54,6 +54,7 @@ class Cliente(Base):
 
     processo_partes: Mapped[list["ProcessoParte"]] = relationship(back_populates="cliente")
     financeiro: Mapped[list["Financeiro"]] = relationship(back_populates="cliente")
+    vindi_customers: Mapped[list["VindiCustomer"]] = relationship(back_populates="cliente")
 
 
 # ──────────────────────────────────────────────
@@ -83,6 +84,7 @@ class Processo(Base):
     financeiro: Mapped[list["Financeiro"]] = relationship(back_populates="processo", cascade="all, delete-orphan")
     documentos: Mapped[list["Documento"]] = relationship(back_populates="processo")
     conversas: Mapped[list["Conversa"]] = relationship(back_populates="processo")
+    vindi_subscriptions: Mapped[list["VindiSubscription"]] = relationship(back_populates="processo")
 
 
 # ──────────────────────────────────────────────
@@ -164,6 +166,7 @@ class Financeiro(Base):
 
     processo: Mapped["Processo"] = relationship(back_populates="financeiro")
     cliente: Mapped["Cliente"] = relationship(back_populates="financeiro")
+    vindi_bill: Mapped["VindiBill | None"] = relationship(back_populates="financeiro", uselist=False)
 
 
 # ──────────────────────────────────────────────
@@ -233,3 +236,109 @@ class ConfigEscritorio(Base):
     valor: Mapped[str] = mapped_column(Text)
     descricao: Mapped[str | None] = mapped_column(String(255), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ──────────────────────────────────────────────
+# Vindi — Tabelas espelho
+# ──────────────────────────────────────────────
+class VindiCustomer(Base):
+    __tablename__ = "vindi_customers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vindi_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    nome: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    cpf_cnpj: Mapped[str | None] = mapped_column(String(18), nullable=True)
+    telefone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True, index=True)
+    status_sync: Mapped[str] = mapped_column(String(20), default="pendente", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    cliente: Mapped["Cliente | None"] = relationship(back_populates="vindi_customers")
+    subscriptions: Mapped[list["VindiSubscription"]] = relationship(back_populates="vindi_customer")
+    bills: Mapped[list["VindiBill"]] = relationship(back_populates="vindi_customer")
+
+
+class VindiProduct(Base):
+    __tablename__ = "vindi_products"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vindi_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    nome: Mapped[str] = mapped_column(String(255))
+    descricao: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    valor: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    subscriptions: Mapped[list["VindiSubscription"]] = relationship(back_populates="vindi_product")
+
+
+class VindiSubscription(Base):
+    __tablename__ = "vindi_subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vindi_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    vindi_customer_id: Mapped[int] = mapped_column(ForeignKey("vindi_customers.id"), index=True)
+    vindi_product_id: Mapped[int | None] = mapped_column(ForeignKey("vindi_products.id"), nullable=True, index=True)
+    processo_id: Mapped[int | None] = mapped_column(ForeignKey("processos.id"), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(30), default="active")
+    dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    vindi_customer: Mapped["VindiCustomer"] = relationship(back_populates="subscriptions")
+    vindi_product: Mapped["VindiProduct | None"] = relationship(back_populates="subscriptions")
+    processo: Mapped["Processo | None"] = relationship(back_populates="vindi_subscriptions")
+    bills: Mapped[list["VindiBill"]] = relationship(back_populates="vindi_subscription")
+
+
+class VindiBill(Base):
+    __tablename__ = "vindi_bills"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    vindi_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    vindi_customer_id: Mapped[int] = mapped_column(ForeignKey("vindi_customers.id"), index=True)
+    vindi_subscription_id: Mapped[int | None] = mapped_column(ForeignKey("vindi_subscriptions.id"), nullable=True, index=True)
+    valor: Mapped[float] = mapped_column(Numeric(12, 2))
+    status: Mapped[str] = mapped_column(String(30), default="pending")
+    data_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_pagamento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    financeiro_id: Mapped[int | None] = mapped_column(ForeignKey("financeiro.id"), nullable=True, index=True)
+    dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    vindi_customer: Mapped["VindiCustomer"] = relationship(back_populates="bills")
+    vindi_subscription: Mapped["VindiSubscription | None"] = relationship(back_populates="bills")
+    financeiro: Mapped["Financeiro | None"] = relationship(back_populates="vindi_bill")
+
+
+# ──────────────────────────────────────────────
+# Tags polimoricas
+# ──────────────────────────────────────────────
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(100), unique=True)
+    cor: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    entidades: Mapped[list["TagEntidade"]] = relationship(back_populates="tag", cascade="all, delete-orphan")
+
+
+class TagEntidade(Base):
+    __tablename__ = "tag_entidades"
+    __table_args__ = (
+        UniqueConstraint("tag_id", "entidade_tipo", "entidade_id", name="uq_tag_entidade"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tag_id: Mapped[int] = mapped_column(ForeignKey("tags.id", ondelete="CASCADE"), index=True)
+    entidade_tipo: Mapped[str] = mapped_column(String(30))
+    entidade_id: Mapped[int] = mapped_column(Integer)
+
+    tag: Mapped["Tag"] = relationship(back_populates="entidades")

@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     evolution_api_url: str = "http://evolution:8080"
     evolution_api_key: str = ""
     anthropic_api_key: str = ""
+    vindi_webhook_secret: str = ""
+    vindi_api_key: str = ""
 
     class Config:
         env_file = ".env"

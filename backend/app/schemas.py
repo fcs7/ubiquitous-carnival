@@ -226,3 +226,103 @@ class ChatResponse(BaseModel):
     modelo: str
     tokens_input: int
     tokens_output: int
+
+
+# -- Vindi --
+class VindiCustomerOut(BaseModel):
+    id: int
+    vindi_id: int
+    nome: str
+    email: str | None
+    cpf_cnpj: str | None
+    telefone: str | None
+    cliente_id: int | None
+    status_sync: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VindiProductOut(BaseModel):
+    id: int
+    vindi_id: int
+    nome: str
+    descricao: str | None
+    valor: float | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VindiSubscriptionOut(BaseModel):
+    id: int
+    vindi_id: int
+    vindi_customer_id: int
+    vindi_product_id: int | None
+    processo_id: int | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VindiBillOut(BaseModel):
+    id: int
+    vindi_id: int
+    vindi_customer_id: int
+    vindi_subscription_id: int | None
+    valor: float
+    status: str
+    data_vencimento: date | None
+    data_pagamento: date | None
+    financeiro_id: int | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class VindiVincularCustomerRequest(BaseModel):
+    cliente_id: int | None = None
+
+
+class VindiVincularSubscriptionRequest(BaseModel):
+    processo_id: int
+
+
+class VindiCustomerDetailOut(VindiCustomerOut):
+    subscriptions: list[VindiSubscriptionOut] = []
+    bills: list[VindiBillOut] = []
+
+
+# -- Tags --
+class TagCreate(BaseModel):
+    nome: str
+    cor: str | None = None
+
+
+class TagOut(BaseModel):
+    id: int
+    nome: str
+    cor: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TagEntidadeCreate(BaseModel):
+    tag_id: int
+    entidade_tipo: str
+    entidade_id: int
+
+
+class TagEntidadeOut(BaseModel):
+    id: int
+    tag_id: int
+    entidade_tipo: str
+    entidade_id: int
+
+    model_config = {"from_attributes": True}
