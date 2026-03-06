@@ -1,6 +1,21 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+
+def _parse_datajud_datetime(raw: str) -> datetime | None:
+    """Converte datas do DataJud que vem em formatos variados."""
+    if not raw:
+        return None
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y%m%d%H%M%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(raw)
+    except (ValueError, TypeError):
+        return None
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -44,9 +59,8 @@ def cadastrar_processo(payload: ProcessoCreate, db: Session = Depends(get_db)):
         orgao_julgador=dados.get("orgaoJulgador", {}).get("nome") if dados else None,
         grau=dados.get("grau") if dados else None,
         data_ajuizamento=(
-            datetime.fromisoformat(dados["dataAjuizamento"])
-            if dados and dados.get("dataAjuizamento")
-            else None
+            _parse_datajud_datetime(dados.get("dataAjuizamento", ""))
+            if dados else None
         ),
         ultima_verificacao=datetime.utcnow(),
     )
@@ -56,9 +70,8 @@ def cadastrar_processo(payload: ProcessoCreate, db: Session = Depends(get_db)):
     # 5) Salvar movimentos
     for mov in (dados.get("movimentos") or []) if dados else []:
         data_hora_raw = mov.get("dataHora", "")
-        if isinstance(data_hora_raw, str) and data_hora_raw:
-            data_hora = datetime.fromisoformat(data_hora_raw)
-        else:
+        data_hora = _parse_datajud_datetime(data_hora_raw) if data_hora_raw else None
+        if data_hora is None:
             data_hora = datetime.utcnow()
 
         complementos_list = mov.get("complementosTabelados") or []

@@ -68,6 +68,11 @@ flutter run              # mobile
 - `Financeiro` links to both `processo_id` AND `cliente_id` (who pays)
 - `Movimento.data_hora` is `DateTime` (not string) — convert ISO strings from DataJud on insert
 - Backend uses venv at `backend/.venv` (Arch Linux requires this)
+- Always run git commands from project root `/home/fcs/Documents/Muglia/`, not from `backend/`
+- All test files must use shared `conftest.py` fixtures (`client`, `db`) — never create per-file engines
+- `datetime.utcnow()` is deprecated in Python 3.14 — use `datetime.now(datetime.UTC)` in new code
+- Flutter is NOT installed yet — install before frontend tasks: `sudo snap install flutter --classic`
+- Custom dev agents available in `.claude/agents/` (backend, frontend, juridico, devops, testes)
 
 ## DataJud API
 
