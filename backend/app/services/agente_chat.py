@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from sqlalchemy.orm import Session
 
@@ -10,7 +11,10 @@ from app.services.claude_chat import (
     carregar_historico,
 )
 from app.services.ferramentas import FERRAMENTAS_DISPONIVEIS
+from app.services.memoria_agente import carregar_memoria
 from app.services.providers import get_provider
+
+logger = logging.getLogger(__name__)
 
 
 def montar_system_prompt_agente(agente: AgenteConfig, db: Session, processo_id: int | None) -> str:
@@ -21,6 +25,13 @@ def montar_system_prompt_agente(agente: AgenteConfig, db: Session, processo_id: 
 
     if agente.contexto_referencia:
         parts.append(f"\nCONTEXTO DE REFERENCIA:\n{agente.contexto_referencia}")
+
+    try:
+        memoria = carregar_memoria(agente.id)
+        if memoria:
+            parts.append(f"\nMEMORIA DO AGENTE:\n{memoria}")
+    except Exception:
+        logger.warning("Falha ao carregar memoria do agente %d", agente.id, exc_info=True)
 
     parts.append(montar_config_escritorio(db))
 

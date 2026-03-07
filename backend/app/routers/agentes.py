@@ -36,6 +36,17 @@ class GerarContextoResponse(BaseModel):
     contexto_referencia: str
 
 
+class GerarMemoriaRequest(BaseModel):
+    pasta_drive_id: str
+
+
+class GerarMemoriaResponse(BaseModel):
+    arquivos_gerados: list[str]
+    arquivos_fonte: int
+    tokens_usados: int
+    pasta_local: str
+
+
 # ── Meta-prompt para gerar instrucoes de sistema ─────
 
 META_PROMPT = """Voce e um especialista em engenharia de prompts para modelos de IA, baseado nas melhores praticas da Anthropic.
@@ -119,6 +130,42 @@ def gerar_contexto(payload: GerarContextoRequest, db: Session = Depends(get_db))
 
     contexto = _formatar_contexto_clientes(clientes_com_processos)
     return GerarContextoResponse(contexto_referencia=contexto)
+
+
+@router.post("/{agente_id}/gerar-memoria", response_model=GerarMemoriaResponse)
+def gerar_memoria(agente_id: int, payload: GerarMemoriaRequest, db: Session = Depends(get_db)):
+    """Gera arquivos de memoria (.md) a partir de uma pasta do Google Drive."""
+    from app.services.google_drive import DriveServiceError
+    from app.services.memoria_agente import gerar_e_salvar_memoria
+
+    agente = db.query(AgenteConfig).filter(AgenteConfig.id == agente_id).first()
+    if not agente:
+        raise HTTPException(status_code=404, detail="Agente nao encontrado")
+
+    try:
+        resultado = gerar_e_salvar_memoria(agente_id, payload.pasta_drive_id)
+    except DriveServiceError as e:
+        msg = str(e)
+        if "SEGURANCA" in msg:
+            raise HTTPException(status_code=403, detail=msg)
+        raise HTTPException(status_code=502, detail=f"Erro no Google Drive: {msg}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar memoria com IA: {e}")
+
+    return GerarMemoriaResponse(
+        arquivos_gerados=resultado.arquivos_gerados,
+        arquivos_fonte=resultado.arquivos_fonte,
+        tokens_usados=resultado.tokens_usados,
+        pasta_local=resultado.pasta_local,
+    )
+
+
+@router.get("/{agente_id}/memoria", response_model=list[str])
+def listar_memoria(agente_id: int):
+    """Lista arquivos de memoria (.md) do agente."""
+    from app.services.memoria_agente import listar_arquivos_memoria
+
+    return listar_arquivos_memoria(agente_id)
 
 
 def _formatar_contexto_clientes(clientes_com_processos: list) -> str:

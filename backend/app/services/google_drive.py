@@ -8,11 +8,13 @@ SEGURANCA:
 - Service Account com escopo restrito a pasta raiz
 """
 import functools
+import io
 import logging
 
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
 
 from app.config import settings
 
@@ -22,6 +24,19 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 FOLDER_MIME = "application/vnd.google-apps.folder"
 FIELDS_LISTA = "files(id,name,mimeType,webViewLink,modifiedTime,size,parents)"
 FIELDS_ARQUIVO = "id,name,mimeType,webViewLink,modifiedTime,size,parents"
+
+# MIMEs que podem ser exportados como texto via files().export()
+MIME_EXPORTAVEIS = {
+    "application/vnd.google-apps.document": "text/plain",
+    "application/vnd.google-apps.spreadsheet": "text/csv",
+    "application/vnd.google-apps.presentation": "text/plain",
+}
+
+# MIMEs que podem ser lidos diretamente via files().get_media()
+MIME_TEXTO_DIRETO = {
+    "text/plain", "text/markdown", "text/csv",
+    "application/json", "text/html",
+}
 
 
 class DriveServiceError(Exception):
@@ -114,6 +129,52 @@ def obter_metadados(file_id: str) -> dict:
         return service.files().get(fileId=file_id, fields=FIELDS_ARQUIVO).execute()
     except HttpError as e:
         raise DriveServiceError(f"Erro ao obter metadados: {e}") from e
+
+
+def baixar_conteudo_arquivo(file_id: str) -> tuple[str, str]:
+    """Baixa o conteudo textual de um arquivo do Drive.
+
+    Google Docs/Sheets/Slides sao exportados como texto.
+    Arquivos de texto puro sao baixados diretamente.
+    Tipos binarios (pdf, imagens) retornam ("", "") — ignorados silenciosamente.
+
+    Retorna (nome_arquivo, conteudo_texto).
+    """
+    service = _get_service()
+    try:
+        meta = service.files().get(fileId=file_id, fields="id,name,mimeType").execute()
+    except HttpError as e:
+        raise DriveServiceError(f"Erro ao obter metadados para download: {e}") from e
+
+    nome = meta.get("name", "")
+    mime = meta.get("mimeType", "")
+
+    try:
+        if mime in MIME_EXPORTAVEIS:
+            # Google Docs, Sheets, Slides — exporta como texto
+            request = service.files().export_media(fileId=file_id, mimeType=MIME_EXPORTAVEIS[mime])
+            buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(buffer, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            return nome, buffer.getvalue().decode("utf-8")
+
+        if mime in MIME_TEXTO_DIRETO:
+            # Arquivos de texto puro — download direto
+            request = service.files().get_media(fileId=file_id)
+            buffer = io.BytesIO()
+            downloader = MediaIoBaseDownload(buffer, request)
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+            return nome, buffer.getvalue().decode("utf-8")
+
+    except HttpError as e:
+        raise DriveServiceError(f"Erro ao baixar conteudo de '{nome}': {e}") from e
+
+    # Tipo binario nao suportado (pdf, imagem, etc.)
+    return "", ""
 
 
 # ──────────────────────────────────────────────

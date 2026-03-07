@@ -215,6 +215,57 @@ class ApiService {
     return _handleMap(resp);
   }
 
+  Future<Map<String, dynamic>> gerarMemoriaDrive(int agenteId, String pastaDriveId) async {
+    final resp = await _client.post(
+      Uri.parse('$baseUrl/agentes/$agenteId/gerar-memoria'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'pasta_drive_id': pastaDriveId}),
+    );
+    return _handleMap(resp);
+  }
+
+  Future<List<dynamic>> listarMemoriaAgente(int agenteId) async {
+    final resp = await _client.get(Uri.parse('$baseUrl/agentes/$agenteId/memoria'));
+    return _handleList(resp);
+  }
+
+  // ── Documentos / Google Drive ────────────
+  Future<List<dynamic>> listarPastaDrive(String pastaId, {bool apenasPastas = false}) async {
+    final query = apenasPastas ? '?apenas_pastas=true' : '';
+    final resp = await _client.get(Uri.parse('$baseUrl/documentos/drive/pasta/$pastaId$query'));
+    return _handleList(resp);
+  }
+
+  Future<List<dynamic>> buscarDrive(String q, {String? pastaId}) async {
+    final extra = pastaId != null ? '&pasta_id=$pastaId' : '';
+    final resp = await _client.get(Uri.parse('$baseUrl/documentos/drive/buscar?q=$q$extra'));
+    return _handleList(resp);
+  }
+
+  Future<Map<String, dynamic>> vincularDocumentoDrive(Map<String, dynamic> data) async {
+    final resp = await _client.post(
+      Uri.parse('$baseUrl/documentos/drive/vincular'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    return _handleMap(resp);
+  }
+
+  Future<List<dynamic>> getDocumentosProcesso(int processoId) async {
+    final resp = await _client.get(Uri.parse('$baseUrl/documentos/processo/$processoId'));
+    return _handleList(resp);
+  }
+
+  Future<void> desvincularDocumento(int documentoId) async {
+    await _client.delete(Uri.parse('$baseUrl/documentos/$documentoId'));
+  }
+
+  Future<Map<String, dynamic>> organizarPastaProcesso(int processoId, {bool simular = false}) async {
+    final query = simular ? '?simular=true' : '';
+    final resp = await _client.post(Uri.parse('$baseUrl/documentos/drive/organizar/$processoId$query'));
+    return _handleMap(resp);
+  }
+
   // ── Health ────────────────────────────────
   Future<bool> healthCheck() async {
     try {

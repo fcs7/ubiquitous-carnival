@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:muglia/models/agente.dart';
 import 'package:muglia/services/api_service.dart';
 import 'package:muglia/theme/muglia_theme.dart';
+import 'package:muglia/widgets/drive_folder_picker_dialog.dart';
 import 'package:muglia/widgets/muglia_scaffold.dart';
 
 class AgenteFormScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
 
   bool _gerandoInstrucao = false;
   bool _gerandoContexto = false;
+  bool _gerandoMemoria = false;
 
   List<FerramentaDisponivel> _ferramentasDisponiveis = [];
   bool _carregandoFerramentas = false;
@@ -302,6 +304,49 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
       }
     } finally {
       if (mounted) setState(() => _gerandoContexto = false);
+    }
+  }
+
+  Future<void> _abrirSeletorPastaDrive() async {
+    if (!_editando) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Salve o agente antes de gerar memoria')),
+      );
+      return;
+    }
+
+    final api = context.read<ApiService>();
+    final pasta = await showDialog<DriveFolderSelection>(
+      context: context,
+      builder: (_) => DriveFolderPickerDialog(api: api),
+    );
+
+    if (pasta == null || !mounted) return;
+
+    setState(() => _gerandoMemoria = true);
+    try {
+      final resultado = await api.gerarMemoriaDrive(widget.agenteId!, pasta.id);
+      final gerados = resultado['arquivos_gerados'] as List<dynamic>? ?? [];
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Memoria gerada: ${gerados.length} arquivo(s) criado(s)'),
+            backgroundColor: MugliaTheme.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao gerar memoria: $e'),
+            backgroundColor: MugliaTheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gerandoMemoria = false);
     }
   }
 
@@ -771,6 +816,26 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: MugliaTheme.accent,
                             side: BorderSide(color: MugliaTheme.accent.withValues(alpha: 0.5)),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Tooltip(
+                          message: _editando ? '' : 'Salve o agente antes de gerar memoria',
+                          child: OutlinedButton.icon(
+                            onPressed: _gerandoMemoria ? null : _abrirSeletorPastaDrive,
+                            icon: _gerandoMemoria
+                                ? const SizedBox(
+                                    width: 16, height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: MugliaTheme.accent),
+                                  )
+                                : const Icon(Icons.cloud_download_rounded, size: 18),
+                            label: Text(_gerandoMemoria ? 'Gerando memoria...' : 'Gerar memoria a partir do Drive'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: MugliaTheme.accent,
+                              side: BorderSide(color: MugliaTheme.accent.withValues(alpha: 0.5)),
+                            ),
                           ),
                         ),
                       ),

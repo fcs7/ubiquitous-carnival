@@ -284,7 +284,7 @@ class _AssistenteScreenState extends State<AssistenteScreen>
 
   Widget _buildInputBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       decoration: BoxDecoration(
         color: MugliaTheme.surface,
         border: Border(
@@ -327,8 +327,9 @@ class _AssistenteScreenState extends State<AssistenteScreen>
                     focusedBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20,
-                      vertical: 12,
+                      vertical: 8,
                     ),
+                    isDense: true,
                   ),
                   onSubmitted: (_) => _enviarMensagem(),
                 ),
