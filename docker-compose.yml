@@ -26,6 +26,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
+      - ./secrets/google_credentials.json:/run/secrets/google_credentials.json:ro
 
   worker:
     build: ./backend
@@ -36,6 +37,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
+      - ./secrets/google_credentials.json:/run/secrets/google_credentials.json:ro
 
   beat:
     build: ./backend

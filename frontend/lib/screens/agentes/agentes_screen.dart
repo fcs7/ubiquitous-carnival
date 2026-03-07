@@ -163,7 +163,7 @@ class _AgentesScreenState extends State<AgentesScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => context.go('/agentes/novo'),
+              onPressed: () => context.go('/configuracoes/agentes/novo'),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Criar agente'),
             ),
@@ -182,7 +182,7 @@ class _AgentesScreenState extends State<AgentesScreen> {
       child: Card(
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => context.go('/agentes/${agente.id}'),
+          onTap: () => context.go('/configuracoes/agentes/${agente.id}'),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -266,7 +266,7 @@ class _AgentesScreenState extends State<AgentesScreen> {
                       color: MugliaTheme.surface,
                       onSelected: (valor) {
                         if (valor == 'editar') {
-                          context.go('/agentes/${agente.id}');
+                          context.go('/configuracoes/agentes/${agente.id}');
                         } else if (valor == 'excluir') {
                           _deletarAgente(agente);
                         }
@@ -354,7 +354,7 @@ class _AgentesScreenState extends State<AgentesScreen> {
     return MugliaScaffold(
       title: 'Agentes IA',
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/agentes/novo'),
+        onPressed: () => context.go('/configuracoes/agentes/novo'),
         tooltip: 'Novo agente',
         child: const Icon(Icons.add_rounded),
       ),

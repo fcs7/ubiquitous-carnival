@@ -4,7 +4,7 @@ from fastapi import FastAPI
 
 from app.database import engine, Base, SessionLocal
 from app.models import Usuario
-from app.routers import agentes, chat, clientes, financeiro, prazos, processos, tags, vindi, vindi_webhook, whatsapp
+from app.routers import agentes, assistente, chat, clientes, documentos, financeiro, prazos, processos, tags, vindi, vindi_webhook, whatsapp
 
 
 @asynccontextmanager
@@ -16,6 +16,10 @@ async def lifespan(app: FastAPI):
         if not db.query(Usuario).first():
             db.add(Usuario(nome="Admin Muglia", email="admin@muglia.com.br"))
             db.commit()
+        # Seed agente padrao do assistente
+        from app.services.assistente import get_or_create_agente_padrao
+        get_or_create_agente_padrao(db, 1)
+        db.commit()
     finally:
         db.close()
     yield
@@ -24,8 +28,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Muglia", version="1.0.0", lifespan=lifespan)
 
 app.include_router(agentes.router)
+app.include_router(assistente.router)
 app.include_router(chat.router)
 app.include_router(clientes.router)
+app.include_router(documentos.router)
 app.include_router(financeiro.router)
 app.include_router(prazos.router)
 app.include_router(processos.router)

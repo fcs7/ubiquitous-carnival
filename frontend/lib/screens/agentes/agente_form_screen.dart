@@ -34,6 +34,9 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
   Set<String> _ferramentasSelecionadas = {};
   bool _ativo = true;
 
+  bool _gerandoInstrucao = false;
+  bool _gerandoContexto = false;
+
   List<FerramentaDisponivel> _ferramentasDisponiveis = [];
   bool _carregandoFerramentas = false;
 
@@ -163,7 +166,7 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
             backgroundColor: MugliaTheme.success,
           ),
         );
-        context.go('/agentes');
+        context.go('/configuracoes/agentes');
       }
     } catch (e) {
       setState(() => _carregando = false);
@@ -179,6 +182,126 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _gerarInstrucao() async {
+    if (_nomeController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha o nome do agente antes de gerar')),
+      );
+      return;
+    }
+
+    setState(() => _gerandoInstrucao = true);
+    try {
+      final api = context.read<ApiService>();
+      final resultado = await api.gerarInstrucao({
+        'nome': _nomeController.text.trim(),
+        'descricao': _descricaoController.text.trim(),
+        'provider': _providerSelecionado,
+        'modelo': _modeloSelecionado,
+        'ferramentas_habilitadas': _ferramentasSelecionadas.toList(),
+      });
+
+      final instrucao = resultado['instrucoes_sistema'] as String;
+
+      if (_instrucoesSistemaController.text.isNotEmpty) {
+        final substituir = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Substituir instrucoes?'),
+            content: const Text('O campo ja tem conteudo. Deseja substituir?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Substituir'),
+              ),
+            ],
+          ),
+        );
+        if (substituir != true) return;
+      }
+
+      _instrucoesSistemaController.text = instrucao;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao gerar instrucao')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gerandoInstrucao = false);
+    }
+  }
+
+  Future<void> _abrirSeletorClientes() async {
+    List<dynamic> clientes;
+    try {
+      final api = context.read<ApiService>();
+      clientes = await api.getClientes();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao carregar clientes')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    final selecionados = await showDialog<Set<int>>(
+      context: context,
+      builder: (ctx) => _DialogSeletorClientes(clientes: clientes),
+    );
+
+    if (selecionados == null || selecionados.isEmpty) return;
+
+    setState(() => _gerandoContexto = true);
+    try {
+      final api = context.read<ApiService>();
+      final resultado = await api.gerarContexto(selecionados.toList());
+
+      final contexto = resultado['contexto_referencia'] as String;
+
+      if (_contextoReferenciaController.text.isNotEmpty) {
+        final substituir = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Substituir contexto?'),
+            content: const Text('O campo ja tem conteudo. Deseja substituir?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Substituir'),
+              ),
+            ],
+          ),
+        );
+        if (substituir != true) {
+          setState(() => _gerandoContexto = false);
+          return;
+        }
+      }
+
+      _contextoReferenciaController.text = contexto;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao gerar contexto')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gerandoContexto = false);
     }
   }
 
@@ -610,12 +733,46 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
                         hint:
                             'Ex: Voce e especialista em direito trabalhista. Sempre cite artigos da CLT...',
                       ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: OutlinedButton.icon(
+                          onPressed: _gerandoInstrucao ? null : _gerarInstrucao,
+                          icon: _gerandoInstrucao
+                              ? const SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: MugliaTheme.accent),
+                                )
+                              : const Icon(Icons.auto_awesome_rounded, size: 18),
+                          label: Text(_gerandoInstrucao ? 'Gerando...' : 'Gerar instrucao com IA'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: MugliaTheme.accent,
+                            side: BorderSide(color: MugliaTheme.accent.withValues(alpha: 0.5)),
+                          ),
+                        ),
+                      ),
                       _buildCampo(
                         label: 'Contexto de referencia',
                         controller: _contextoReferenciaController,
                         maxLines: 4,
                         hint:
                             'Informacoes adicionais que o agente deve considerar',
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: OutlinedButton.icon(
+                          onPressed: _gerandoContexto ? null : _abrirSeletorClientes,
+                          icon: _gerandoContexto
+                              ? const SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: MugliaTheme.accent),
+                                )
+                              : const Icon(Icons.people_rounded, size: 18),
+                          label: Text(_gerandoContexto ? 'Gerando...' : 'Gerar contexto de clientes'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: MugliaTheme.accent,
+                            side: BorderSide(color: MugliaTheme.accent.withValues(alpha: 0.5)),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -695,6 +852,111 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _DialogSeletorClientes extends StatefulWidget {
+  final List<dynamic> clientes;
+  const _DialogSeletorClientes({required this.clientes});
+
+  @override
+  State<_DialogSeletorClientes> createState() => _DialogSeletorClientesState();
+}
+
+class _DialogSeletorClientesState extends State<_DialogSeletorClientes> {
+  final Set<int> _selecionados = {};
+  String _busca = '';
+
+  List<dynamic> get _clientesFiltrados {
+    if (_busca.isEmpty) return widget.clientes;
+    final termo = _busca.toLowerCase();
+    return widget.clientes.where((c) {
+      final nome = (c['nome'] ?? '').toString().toLowerCase();
+      final cpf = (c['cpf_cnpj'] ?? '').toString().toLowerCase();
+      return nome.contains(termo) || cpf.contains(termo);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Selecionar clientes'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: Column(
+          children: [
+            TextField(
+              decoration: const InputDecoration(
+                hintText: 'Buscar por nome ou CPF...',
+                prefixIcon: Icon(Icons.search_rounded),
+                isDense: true,
+              ),
+              onChanged: (v) => setState(() => _busca = v),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  '${_selecionados.length} selecionado${_selecionados.length != 1 ? 's' : ''}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const Spacer(),
+                if (_selecionados.isNotEmpty)
+                  TextButton(
+                    onPressed: () => setState(() => _selecionados.clear()),
+                    child: const Text('Limpar'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: _clientesFiltrados.isEmpty
+                  ? const Center(child: Text('Nenhum cliente encontrado'))
+                  : ListView.builder(
+                      itemCount: _clientesFiltrados.length,
+                      itemBuilder: (context, index) {
+                        final cliente = _clientesFiltrados[index];
+                        final id = cliente['id'] as int;
+                        final nome = cliente['nome'] ?? 'Sem nome';
+                        final cpf = cliente['cpf_cnpj'] ?? '';
+                        final selecionado = _selecionados.contains(id);
+
+                        return CheckboxListTile(
+                          value: selecionado,
+                          title: Text(nome, style: const TextStyle(fontSize: 14)),
+                          subtitle: Text(cpf, style: const TextStyle(fontSize: 12)),
+                          dense: true,
+                          activeColor: MugliaTheme.primary,
+                          onChanged: (v) {
+                            setState(() {
+                              if (v == true) {
+                                _selecionados.add(id);
+                              } else {
+                                _selecionados.remove(id);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _selecionados.isEmpty
+              ? null
+              : () => Navigator.pop(context, _selecionados),
+          child: Text('Gerar contexto (${_selecionados.length})'),
+        ),
+      ],
     );
   }
 }

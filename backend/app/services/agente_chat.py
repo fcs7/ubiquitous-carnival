@@ -70,6 +70,53 @@ def _executar_ferramenta(tool_name: str, tool_input: dict, tool_use_id: str, db:
     return resultado
 
 
+def _executar_tool_loop(
+    provider, historico, system_prompt, tool_schemas,
+    max_tokens, max_iteracoes, db, conversa_id, modelo,
+) -> tuple[str, int, int]:
+    """Executa o loop de tool calling ate end_turn ou max_iteracoes.
+    Retorna (texto_acumulado, total_input, total_output)."""
+    iteracao = 0
+    texto_acumulado = ""
+    total_input = 0
+    total_output = 0
+
+    while iteracao < max_iteracoes:
+        response = provider.chat(
+            model=modelo,
+            system=system_prompt,
+            messages=historico,
+            tools=tool_schemas if tool_schemas else None,
+            max_tokens=max_tokens,
+        )
+
+        total_input += response.input_tokens
+        total_output += response.output_tokens
+
+        if response.stop_reason == "end_turn":
+            texto_acumulado += response.text or ""
+            break
+        elif response.stop_reason == "tool_use":
+            texto_acumulado += response.text
+
+            assistant_content = provider.format_assistant_with_tools(response.text, response.tool_calls)
+            historico.append({"role": "assistant", "content": assistant_content})
+
+            tool_results = []
+            for tc in response.tool_calls:
+                resultado = _executar_ferramenta(tc.name, tc.input, tc.id, db, conversa_id)
+                tool_results.append(provider.format_tool_result_message(tc.id, resultado))
+
+            historico.append({"role": "user", "content": tool_results})
+        else:
+            texto_acumulado += response.text or ""
+            break
+
+        iteracao += 1
+
+    return texto_acumulado, total_input, total_output
+
+
 def chat_com_agente(
     db: Session,
     conversa_id: int,
@@ -94,11 +141,6 @@ def chat_com_agente(
     historico = carregar_historico(db, conversa_id)
     historico.append({"role": "user", "content": mensagem_usuario})
 
-    iteracao = 0
-    texto_acumulado = ""
-    total_input = 0
-    total_output = 0
-
     msg_user = Mensagem(
         conversa_id=conversa_id,
         role="user",
@@ -106,41 +148,17 @@ def chat_com_agente(
     )
 
     try:
-        while iteracao < agente.max_iteracoes_tool:
-            response = provider.chat(
-                model=agente.modelo,
-                system=system_prompt,
-                messages=historico,
-                tools=tool_schemas if tool_schemas else None,
-                max_tokens=agente.max_tokens,
-            )
-
-            total_input += response.input_tokens
-            total_output += response.output_tokens
-
-            if response.stop_reason == "end_turn":
-                texto_acumulado += response.text or ""
-                break
-            elif response.stop_reason == "tool_use":
-                texto_acumulado += response.text
-
-                # Monta conteudo do assistente com tool calls para o historico
-                assistant_content = provider.format_assistant_with_tools(response.text, response.tool_calls)
-                historico.append({"role": "assistant", "content": assistant_content})
-
-                # Executa ferramentas
-                tool_results = []
-                for tc in response.tool_calls:
-                    resultado = _executar_ferramenta(tc.name, tc.input, tc.id, db, conversa_id)
-                    tool_results.append(provider.format_tool_result_message(tc.id, resultado))
-
-                historico.append({"role": "user", "content": tool_results})
-            else:
-                # stop_reason desconhecido (ex: "max_tokens")
-                texto_acumulado += response.text or ""
-                break
-
-            iteracao += 1
+        texto_acumulado, total_input, total_output = _executar_tool_loop(
+            provider=provider,
+            historico=historico,
+            system_prompt=system_prompt,
+            tool_schemas=tool_schemas,
+            max_tokens=agente.max_tokens,
+            max_iteracoes=agente.max_iteracoes_tool,
+            db=db,
+            conversa_id=conversa_id,
+            modelo=agente.modelo,
+        )
 
         msg_user.tokens_input = total_input
         msg_assistant = Mensagem(

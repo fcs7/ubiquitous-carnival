@@ -232,6 +232,20 @@ class ChatResponse(BaseModel):
     tokens_output: int
 
 
+# -- Assistente --
+class AssistenteMensagemCreate(BaseModel):
+    mensagem: str
+
+
+class AssistenteResponse(ChatResponse):
+    conversa_id: int
+
+
+class AssistenteHistoricoOut(BaseModel):
+    conversa_id: int
+    mensagens: list[MensagemOut] = []
+
+
 # -- Vindi --
 class VindiCustomerOut(BaseModel):
     id: int
@@ -339,7 +353,7 @@ class AgenteConfigCreate(BaseModel):
     descricao: str | None = None
     instrucoes_sistema: str | None = None
     provider: Literal["anthropic", "openai"] = "anthropic"
-    modelo: str = "claude-sonnet-4-5-20250514"
+    modelo: str = "claude-sonnet-4-6"
     ferramentas_habilitadas: list[str] = []
     contexto_referencia: str | None = None
     max_tokens: int = Field(default=4096, ge=256, le=64000)
@@ -414,3 +428,51 @@ class FerramentaDisponivel(BaseModel):
     nome: str
     descricao_ui: str
     categoria: str
+
+
+# -- Google Drive --
+class DriveItemOut(BaseModel):
+    id: str
+    name: str
+    mimeType: str
+    webViewLink: str | None = None
+    modifiedTime: str | None = None
+    size: str | None = None
+    parents: list[str] | None = None
+
+
+class DriveVincularRequest(BaseModel):
+    drive_file_id: str
+    drive_url: str
+    nome: str
+    mime_type: str
+    tamanho_bytes: int | None = None
+    processo_id: int | None = None
+    cliente_id: int | None = None
+    categoria: str | None = None
+
+
+class DriveOrganizarOut(BaseModel):
+    pasta_id: str
+    pasta_nome: str
+    pasta_url: str
+
+
+class DocumentoOut(BaseModel):
+    id: int
+    nome: str
+    tipo: str
+    categoria: str | None
+    arquivo_path: str | None
+    mime_type: str
+    tamanho_bytes: int | None
+    drive_file_id: str | None
+    drive_url: str | None
+    drive_pasta_id: str | None
+    origem: str
+    processo_id: int | None
+    cliente_id: int | None
+    usuario_id: int | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

@@ -178,16 +178,21 @@ class Documento(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(255))
-    tipo: Mapped[str] = mapped_column(String(30), index=True)  # modelo, gerado, upload
+    tipo: Mapped[str] = mapped_column(String(30), index=True)  # modelo, gerado, upload, drive
     categoria: Mapped[str | None] = mapped_column(String(50), nullable=True)  # peticao, contestacao, recurso
-    arquivo_path: Mapped[str] = mapped_column(String(500))
+    arquivo_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     mime_type: Mapped[str] = mapped_column(String(100))
-    tamanho_bytes: Mapped[int] = mapped_column(Integer)
+    tamanho_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Google Drive
+    drive_file_id: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    drive_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    drive_pasta_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    origem: Mapped[str] = mapped_column(String(20), default="local")  # local | drive
     processo_id: Mapped[int | None] = mapped_column(ForeignKey("processos.id"), nullable=True, index=True)
     cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True, index=True)
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     conversa_id: Mapped[int | None] = mapped_column(ForeignKey("conversas.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     processo: Mapped["Processo | None"] = relationship(back_populates="documentos")
 
@@ -359,7 +364,7 @@ class AgenteConfig(Base):
     descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     instrucoes_sistema: Mapped[str | None] = mapped_column(Text, nullable=True)
     provider: Mapped[str] = mapped_column(String(20), default="anthropic")  # anthropic, openai
-    modelo: Mapped[str] = mapped_column(String(50), default="claude-sonnet-4-5-20250514")
+    modelo: Mapped[str] = mapped_column(String(50), default="claude-sonnet-4-6")
     ferramentas_habilitadas: Mapped[str] = mapped_column(Text, default="[]")  # JSON list[str]
     contexto_referencia: Mapped[str | None] = mapped_column(Text, nullable=True)
     max_tokens: Mapped[int] = mapped_column(Integer, default=4096)

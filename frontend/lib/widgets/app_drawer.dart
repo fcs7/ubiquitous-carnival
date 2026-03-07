@@ -104,18 +104,11 @@ class AppDrawer extends StatelessWidget {
           ),
 
           _DrawerItem(
-            icon: Icons.chat_rounded,
-            label: 'Chat Juridico',
-            path: '/chat',
-            isSelected: currentPath.startsWith('/chat'),
+            icon: Icons.assistant_rounded,
+            label: 'Assistente',
+            path: '/assistente',
+            isSelected: currentPath.startsWith('/assistente'),
             accentColor: MugliaTheme.accent,
-          ),
-          _DrawerItem(
-            icon: Icons.smart_toy_rounded,
-            label: 'Agentes IA',
-            path: '/agentes',
-            isSelected: currentPath.startsWith('/agentes'),
-            accentColor: const Color(0xFFD4A574),
           ),
           _DrawerItem(
             icon: Icons.folder_rounded,

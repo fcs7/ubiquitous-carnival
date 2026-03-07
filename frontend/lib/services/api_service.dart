@@ -143,6 +143,21 @@ class ApiService {
     await _client.delete(Uri.parse('$baseUrl/conversas/$id'));
   }
 
+  // ── Assistente ──────────────────────────────
+  Future<Map<String, dynamic>> getAssistenteHistorico({int usuarioId = 1}) async {
+    final resp = await _client.get(Uri.parse('$baseUrl/assistente/historico?usuario_id=$usuarioId'));
+    return _handleMap(resp);
+  }
+
+  Future<Map<String, dynamic>> enviarMensagemAssistente(String mensagem, {int usuarioId = 1}) async {
+    final resp = await _client.post(
+      Uri.parse('$baseUrl/assistente/mensagens?usuario_id=$usuarioId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'mensagem': mensagem}),
+    );
+    return _handleMap(resp);
+  }
+
   // ── Agentes ─────────────────────────────────
   Future<List<dynamic>> getAgentes({int? usuarioId}) async {
     final query = usuarioId != null ? '?usuario_id=$usuarioId' : '';
@@ -180,6 +195,24 @@ class ApiService {
   Future<List<dynamic>> getFerramentasDisponiveis() async {
     final resp = await _client.get(Uri.parse('$baseUrl/agentes/ferramentas/disponiveis'));
     return _handleList(resp);
+  }
+
+  Future<Map<String, dynamic>> gerarInstrucao(Map<String, dynamic> data) async {
+    final resp = await _client.post(
+      Uri.parse('$baseUrl/agentes/gerar-instrucao'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    return _handleMap(resp);
+  }
+
+  Future<Map<String, dynamic>> gerarContexto(List<int> clienteIds) async {
+    final resp = await _client.post(
+      Uri.parse('$baseUrl/agentes/gerar-contexto'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'cliente_ids': clienteIds}),
+    );
+    return _handleMap(resp);
   }
 
   // ── Health ────────────────────────────────

@@ -12,6 +12,9 @@ from app.services.ferramentas.prazo import (
 from app.services.ferramentas.financeiro import (
     SCHEMA_RESUMO_FINANCEIRO, executar_resumo_financeiro,
 )
+from app.services.ferramentas.drive import (
+    SCHEMA_LISTAR_DOCUMENTOS_PROCESSO, executar_listar_documentos_processo,
+)
 
 FERRAMENTAS_DISPONIVEIS: dict[str, dict] = {
     "buscar_processo": {
@@ -49,5 +52,11 @@ FERRAMENTAS_DISPONIVEIS: dict[str, dict] = {
         "executor": executar_resumo_financeiro,
         "descricao_ui": "Resume posicao financeira de um processo especifico",
         "categoria": "financeiro",
+    },
+    "listar_documentos_processo": {
+        "schema": SCHEMA_LISTAR_DOCUMENTOS_PROCESSO,
+        "executor": executar_listar_documentos_processo,
+        "descricao_ui": "Lista documentos e arquivos vinculados a um processo",
+        "categoria": "documento",
     },
 }

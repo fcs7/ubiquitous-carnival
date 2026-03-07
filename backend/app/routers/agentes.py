@@ -1,16 +1,63 @@
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import AgenteConfig, Usuario
+from app.models import AgenteConfig, Cliente, Processo, ProcessoParte, Usuario
 from app.schemas import (
     AgenteConfigCreate,
     AgenteConfigOut,
     AgenteConfigUpdate,
     FerramentaDisponivel,
 )
+
+
+# ── Schemas para geracao automatica ──────────────────
+
+class GerarInstrucaoRequest(BaseModel):
+    nome: str
+    descricao: str | None = None
+    provider: str = "anthropic"
+    modelo: str = "claude-sonnet-4-6"
+    ferramentas_habilitadas: list[str] = []
+
+
+class GerarInstrucaoResponse(BaseModel):
+    instrucoes_sistema: str
+
+
+class GerarContextoRequest(BaseModel):
+    cliente_ids: list[int]
+
+
+class GerarContextoResponse(BaseModel):
+    contexto_referencia: str
+
+
+# ── Meta-prompt para gerar instrucoes de sistema ─────
+
+META_PROMPT = """Voce e um especialista em engenharia de prompts para modelos de IA, baseado nas melhores praticas da Anthropic.
+
+Sua tarefa e gerar instrucoes de sistema (system prompt) para um agente de IA juridico de um escritorio de advocacia brasileiro.
+
+O prompt gerado deve seguir esta estrutura:
+1. PAPEL: Defina claramente quem o agente e e sua especialidade
+2. CONTEXTO: Escritorio Muglia, direito brasileiro
+3. INSTRUCOES: Regras claras e especificas (use listas numeradas)
+4. FORMATO DE SAIDA: Como as respostas devem ser estruturadas
+5. RESTRICOES: O que o agente NAO deve fazer
+
+Diretrizes:
+- Seja especifico e direto (nao use linguagem vaga)
+- Use XML tags para separar secoes quando util (ex: <instrucoes>, <formato>)
+- Inclua instrucoes sobre citar artigos de lei quando aplicavel
+- O prompt deve ser em portugues brasileiro
+- Adapte o tom (formal/tecnico para advogados, acessivel para clientes)
+- Considere as ferramentas disponiveis para orientar o agente sobre quando usa-las
+- NAO inclua exemplos no prompt gerado (serao adicionados separadamente)
+- Mantenha o prompt conciso mas completo (maximo ~500 palavras)"""
 
 router = APIRouter(prefix="/agentes", tags=["agentes"])
 
@@ -22,6 +69,81 @@ def listar_ferramentas_disponiveis():
         FerramentaDisponivel(nome=k, descricao_ui=v["descricao_ui"], categoria=v["categoria"])
         for k, v in FERRAMENTAS_DISPONIVEIS.items()
     ]
+
+
+@router.post("/gerar-instrucao", response_model=GerarInstrucaoResponse)
+def gerar_instrucao(payload: GerarInstrucaoRequest):
+    from app.services.providers.anthropic_provider import _get_client
+
+    user_msg = f"""Gere instrucoes de sistema para o seguinte agente:
+
+Nome: {payload.nome}
+Descricao: {payload.descricao or 'Nao informada'}
+Provider: {payload.provider}
+Modelo: {payload.modelo}
+Ferramentas disponiveis: {', '.join(payload.ferramentas_habilitadas) if payload.ferramentas_habilitadas else 'Nenhuma'}
+
+Gere APENAS o system prompt, sem explicacoes adicionais."""
+
+    client = _get_client()
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        system=META_PROMPT,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+
+    instrucoes = ""
+    for block in response.content:
+        if hasattr(block, "text") and block.type == "text":
+            instrucoes += block.text
+
+    return GerarInstrucaoResponse(instrucoes_sistema=instrucoes.strip())
+
+
+@router.post("/gerar-contexto", response_model=GerarContextoResponse)
+def gerar_contexto(payload: GerarContextoRequest, db: Session = Depends(get_db)):
+    clientes_com_processos = []
+    for cid in payload.cliente_ids:
+        cliente = db.query(Cliente).filter(Cliente.id == cid).first()
+        if not cliente:
+            raise HTTPException(status_code=404, detail=f"Cliente id={cid} nao encontrado")
+        partes = (
+            db.query(ProcessoParte, Processo)
+            .join(Processo, ProcessoParte.processo_id == Processo.id)
+            .filter(ProcessoParte.cliente_id == cliente.id)
+            .all()
+        )
+        processos = [(proc, pp.papel) for pp, proc in partes]
+        clientes_com_processos.append((cliente, processos))
+
+    contexto = _formatar_contexto_clientes(clientes_com_processos)
+    return GerarContextoResponse(contexto_referencia=contexto)
+
+
+def _formatar_contexto_clientes(clientes_com_processos: list) -> str:
+    partes = ["<clientes_escritorio>"]
+    for cliente, processos in clientes_com_processos:
+        partes.append(f"  <cliente id='{cliente.id}'>")
+        partes.append(f"    <nome>{cliente.nome}</nome>")
+        partes.append(f"    <cpf_cnpj>{cliente.cpf_cnpj}</cpf_cnpj>")
+        if cliente.telefone:
+            partes.append(f"    <telefone>{cliente.telefone}</telefone>")
+        if cliente.email:
+            partes.append(f"    <email>{cliente.email}</email>")
+        if processos:
+            partes.append("    <processos>")
+            for proc, papel in processos:
+                partes.append(f"      <processo cnj='{proc.cnj}' papel='{papel}'>")
+                partes.append(f"        <tribunal>{proc.tribunal}</tribunal>")
+                partes.append(f"        <status>{proc.status}</status>")
+                if proc.classe_nome:
+                    partes.append(f"        <classe>{proc.classe_nome}</classe>")
+                partes.append("      </processo>")
+            partes.append("    </processos>")
+        partes.append("  </cliente>")
+    partes.append("</clientes_escritorio>")
+    return "\n".join(partes)
 
 
 @router.post("/", response_model=AgenteConfigOut, status_code=201)

@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:muglia/models/conversa.dart';
 import 'package:muglia/services/api_service.dart';
 import 'package:muglia/theme/muglia_theme.dart';
+import 'package:muglia/widgets/muglia_scaffold.dart';
 
-class ConversaScreen extends StatefulWidget {
-  final int conversaId;
-  const ConversaScreen({super.key, required this.conversaId});
+class AssistenteScreen extends StatefulWidget {
+  const AssistenteScreen({super.key});
 
   @override
-  State<ConversaScreen> createState() => _ConversaScreenState();
+  State<AssistenteScreen> createState() => _AssistenteScreenState();
 }
 
-class _ConversaScreenState extends State<ConversaScreen>
+class _AssistenteScreenState extends State<AssistenteScreen>
     with TickerProviderStateMixin {
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
 
-  Conversa? _conversa;
+  int? _conversaId;
   List<Mensagem> _mensagens = [];
   bool _carregando = true;
   bool _enviando = false;
@@ -40,7 +39,7 @@ class _ConversaScreenState extends State<ConversaScreen>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _carregarMensagens();
+    _carregarHistorico();
   }
 
   @override
@@ -53,7 +52,7 @@ class _ConversaScreenState extends State<ConversaScreen>
     super.dispose();
   }
 
-  Future<void> _carregarMensagens() async {
+  Future<void> _carregarHistorico() async {
     setState(() {
       _carregando = true;
       _erro = null;
@@ -61,17 +60,20 @@ class _ConversaScreenState extends State<ConversaScreen>
 
     try {
       final api = context.read<ApiService>();
-      final data = await api.getConversaMensagens(widget.conversaId);
-      final conversa = Conversa.fromJson(data);
+      final data = await api.getAssistenteHistorico();
+      final mensagens = (data['mensagens'] as List<dynamic>?)
+              ?.map((e) => Mensagem.fromJson(e))
+              .toList() ??
+          [];
       setState(() {
-        _conversa = conversa;
-        _mensagens = List.from(conversa.mensagens);
+        _conversaId = data['conversa_id'];
+        _mensagens = mensagens;
         _carregando = false;
       });
       _scrollParaFinal();
     } catch (e) {
       setState(() {
-        _erro = 'Erro ao carregar mensagens';
+        _erro = 'Erro ao carregar historico';
         _carregando = false;
       });
     }
@@ -89,16 +91,15 @@ class _ConversaScreenState extends State<ConversaScreen>
     });
   }
 
-  Future<void> _enviarMensagem() async {
-    final texto = _inputController.text.trim();
+  Future<void> _enviarMensagem([String? textoOverride]) async {
+    final texto = textoOverride ?? _inputController.text.trim();
     if (texto.isEmpty || _enviando) return;
 
     _sendController.forward().then((_) => _sendController.reverse());
 
-    // Adiciona mensagem do usuario localmente
     final msgTemp = Mensagem(
       id: -1,
-      conversaId: widget.conversaId,
+      conversaId: _conversaId ?? 0,
       role: 'user',
       conteudo: texto,
       createdAt: DateTime.now(),
@@ -113,12 +114,13 @@ class _ConversaScreenState extends State<ConversaScreen>
 
     try {
       final api = context.read<ApiService>();
-      final result = await api.enviarMensagem(widget.conversaId, texto);
+      final result = await api.enviarMensagemAssistente(texto);
 
-      // A API retorna ChatResponse: {resposta, modelo, tokens_input, tokens_output}
+      _conversaId ??= result['conversa_id'];
+
       final resposta = Mensagem(
         id: DateTime.now().millisecondsSinceEpoch,
-        conversaId: widget.conversaId,
+        conversaId: _conversaId!,
         role: 'assistant',
         conteudo: result['resposta'] ?? '',
         tokensInput: result['tokens_input'],
@@ -153,9 +155,9 @@ class _ConversaScreenState extends State<ConversaScreen>
         ),
         margin: const EdgeInsets.only(left: 60, right: 16, top: 8, bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: MugliaTheme.primary,
-          borderRadius: const BorderRadius.only(
+          borderRadius: BorderRadius.only(
             topLeft: Radius.circular(18),
             topRight: Radius.circular(18),
             bottomLeft: Radius.circular(18),
@@ -203,7 +205,7 @@ class _ConversaScreenState extends State<ConversaScreen>
             Expanded(
               child: SelectableText(
                 msg.conteudo,
-                style: TextStyle(
+                style: const TextStyle(
                   color: MugliaTheme.textPrimary,
                   fontSize: 15,
                   height: 1.55,
@@ -282,7 +284,7 @@ class _ConversaScreenState extends State<ConversaScreen>
 
   Widget _buildInputBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: MugliaTheme.surface,
         border: Border(
@@ -318,16 +320,15 @@ class _ConversaScreenState extends State<ConversaScreen>
                   decoration: InputDecoration(
                     hintText: _enviando
                         ? 'Aguardando resposta...'
-                        : 'Digite sua mensagem...',
+                        : 'Pergunte algo ao assistente...',
                     hintStyle: const TextStyle(color: MugliaTheme.textMuted),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20,
-                      vertical: 8,
+                      vertical: 12,
                     ),
-                    isDense: true,
                   ),
                   onSubmitted: (_) => _enviarMensagem(),
                 ),
@@ -352,7 +353,7 @@ class _ConversaScreenState extends State<ConversaScreen>
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  onPressed: _enviando ? null : _enviarMensagem,
+                  onPressed: _enviando ? null : () => _enviarMensagem(),
                   icon: Icon(
                     _enviando
                         ? Icons.hourglass_top_rounded
@@ -369,9 +370,28 @@ class _ConversaScreenState extends State<ConversaScreen>
     );
   }
 
-  Widget _buildEstadoVazioConversa() {
+  Widget _buildSugestao(String texto, IconData icone) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: OutlinedButton.icon(
+        onPressed: () => _enviarMensagem(texto),
+        icon: Icon(icone, size: 16),
+        label: Text(texto, style: const TextStyle(fontSize: 13)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: MugliaTheme.textSecondary,
+          side: BorderSide(color: MugliaTheme.border),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEstadoVazio() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(48),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -391,16 +411,25 @@ class _ConversaScreenState extends State<ConversaScreen>
             ),
             const SizedBox(height: 20),
             Text(
-              'Assistente Juridico',
+              'Assistente Muglia',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: MugliaTheme.textPrimary,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Pergunte sobre legislacao, gere documentos\nou analise processos',
+              'Seu assistente juridico com acesso a\nprocessos, prazos e financeiro',
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            Wrap(
+              alignment: WrapAlignment.center,
+              children: [
+                _buildSugestao('Prazos da semana?', Icons.schedule_rounded),
+                _buildSugestao('Resumo financeiro', Icons.attach_money_rounded),
+                _buildSugestao('Buscar processo', Icons.search_rounded),
+              ],
             ),
           ],
         ),
@@ -410,40 +439,8 @@ class _ConversaScreenState extends State<ConversaScreen>
 
   @override
   Widget build(BuildContext context) {
-    final titulo = _conversa?.titulo ?? 'Conversa';
-
-    return Scaffold(
-      backgroundColor: MugliaTheme.background,
-      appBar: AppBar(
-        backgroundColor: MugliaTheme.surface,
-        surfaceTintColor: MugliaTheme.surface,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/chat'),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              titulo,
-              style: Theme.of(context).textTheme.titleMedium,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (_conversa != null)
-              Text(
-                _conversa!.modeloClaude.contains('haiku')
-                    ? 'Haiku'
-                    : _conversa!.modeloClaude.contains('sonnet')
-                        ? 'Sonnet'
-                        : _conversa!.modeloClaude,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: MugliaTheme.accent,
-                      fontSize: 11,
-                    ),
-              ),
-          ],
-        ),
-      ),
+    return MugliaScaffold(
+      title: 'Assistente',
       body: _carregando
           ? const Center(
               child: CircularProgressIndicator(
@@ -470,7 +467,7 @@ class _ConversaScreenState extends State<ConversaScreen>
                       ),
                       const SizedBox(height: 16),
                       OutlinedButton.icon(
-                        onPressed: _carregarMensagens,
+                        onPressed: _carregarHistorico,
                         icon: const Icon(Icons.refresh_rounded),
                         label: const Text('Tentar novamente'),
                       ),
@@ -479,14 +476,13 @@ class _ConversaScreenState extends State<ConversaScreen>
                 )
               : Column(
                   children: [
-                    // Lista de mensagens
                     Expanded(
                       child: _mensagens.isEmpty
-                          ? _buildEstadoVazioConversa()
+                          ? _buildEstadoVazio()
                           : ListView.builder(
                               controller: _scrollController,
-                              padding: const EdgeInsets.only(
-                                  top: 16, bottom: 16),
+                              padding:
+                                  const EdgeInsets.only(top: 16, bottom: 16),
                               itemCount:
                                   _mensagens.length + (_enviando ? 1 : 0),
                               itemBuilder: (context, index) {
@@ -501,7 +497,6 @@ class _ConversaScreenState extends State<ConversaScreen>
                               },
                             ),
                     ),
-                    // Input
                     _buildInputBar(),
                   ],
                 ),

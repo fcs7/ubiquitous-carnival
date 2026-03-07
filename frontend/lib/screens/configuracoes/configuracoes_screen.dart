@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:muglia/theme/muglia_theme.dart';
@@ -395,6 +396,47 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
     );
   }
 
+  Widget _buildSecaoAgentes() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSecaoTitulo('Agentes IA', Icons.smart_toy_rounded),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Configure agentes de IA personalizados para automatizar tarefas juridicas.',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: MugliaTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.go('/configuracoes/agentes'),
+                    icon: const Icon(Icons.settings_rounded, size: 18),
+                    label: Text(
+                      'Gerenciar agentes',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MugliaScaffold(
@@ -407,6 +449,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
             _buildSecaoDadosEscritorio(),
             _buildSecaoApis(),
             _buildSecaoPreferencias(),
+            _buildSecaoAgentes(),
             const SizedBox(height: 32),
             // Botao Salvar
             SizedBox(

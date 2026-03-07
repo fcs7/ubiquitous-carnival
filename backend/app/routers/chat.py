@@ -38,7 +38,7 @@ def criar_conversa(payload: ConversaCreate, db: Session = Depends(get_db)):
 
 @router.get("/", response_model=list[ConversaOut])
 def listar_conversas(usuario_id: int | None = None, db: Session = Depends(get_db)):
-    q = db.query(Conversa)
+    q = db.query(Conversa).filter(Conversa.titulo != "__assistente__")
     if usuario_id is not None:
         q = q.filter(Conversa.usuario_id == usuario_id)
     return q.order_by(Conversa.updated_at.desc()).all()

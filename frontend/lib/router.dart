@@ -6,6 +6,7 @@ import 'package:muglia/screens/processos/processos_screen.dart';
 import 'package:muglia/screens/processos/processo_detalhe_screen.dart';
 import 'package:muglia/screens/financeiro/financeiro_screen.dart';
 import 'package:muglia/screens/prazos/prazos_screen.dart';
+import 'package:muglia/screens/assistente/assistente_screen.dart';
 import 'package:muglia/screens/chat/chat_screen.dart';
 import 'package:muglia/screens/chat/conversa_screen.dart';
 import 'package:muglia/screens/agentes/agentes_screen.dart';
@@ -52,6 +53,12 @@ final router = GoRouter(
       path: '/prazos',
       builder: (context, state) => const PrazosScreen(),
     ),
+    // Assistente unificado (nova tela principal)
+    GoRoute(
+      path: '/assistente',
+      builder: (context, state) => const AssistenteScreen(),
+    ),
+    // Chat antigo (mantido para compatibilidade)
     GoRoute(
       path: '/chat',
       builder: (context, state) => const ChatScreen(),
@@ -62,6 +69,7 @@ final router = GoRouter(
         conversaId: int.parse(state.pathParameters['id']!),
       ),
     ),
+    // Agentes — rotas antigas mantidas + novas em /configuracoes/agentes
     GoRoute(
       path: '/agentes',
       builder: (context, state) => const AgentesScreen(),
@@ -72,6 +80,20 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/agentes/:id',
+      builder: (context, state) => AgenteFormScreen(
+        agenteId: int.parse(state.pathParameters['id']!),
+      ),
+    ),
+    GoRoute(
+      path: '/configuracoes/agentes',
+      builder: (context, state) => const AgentesScreen(),
+    ),
+    GoRoute(
+      path: '/configuracoes/agentes/novo',
+      builder: (context, state) => const AgenteFormScreen(),
+    ),
+    GoRoute(
+      path: '/configuracoes/agentes/:id',
       builder: (context, state) => AgenteFormScreen(
         agenteId: int.parse(state.pathParameters['id']!),
       ),
