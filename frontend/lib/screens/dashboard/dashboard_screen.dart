@@ -3,11 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:muglia/models/cliente.dart';
-import 'package:muglia/models/financeiro.dart';
-import 'package:muglia/models/prazo.dart';
 import 'package:muglia/models/processo.dart';
 import 'package:muglia/models/status_servico.dart';
 import 'package:muglia/services/api_service.dart';
@@ -27,11 +24,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Processo> _processos = [];
   List<Cliente> _clientes = [];
-  List<Prazo> _prazos = [];
-  FinanceiroResumo? _resumoFinanceiro;
   List<StatusServico> _servicos = [];
-  String? _grafanaUrl;
   bool _statusIndisponivel = false;
+  bool _statusExpandido = false;
 
   @override
   void initState() {
@@ -51,8 +46,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final resultados = await Future.wait([
         api.getProcessos(),
         api.getClientes(),
-        api.getPrazos(),
-        api.getResumoFinanceiro(),
       ]);
 
       setState(() {
@@ -62,11 +55,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _clientes = (resultados[1] as List<dynamic>)
             .map((e) => Cliente.fromJson(e as Map<String, dynamic>))
             .toList();
-        _prazos = (resultados[2] as List<dynamic>)
-            .map((e) => Prazo.fromJson(e as Map<String, dynamic>))
-            .toList();
-        _resumoFinanceiro =
-            FinanceiroResumo.fromJson(resultados[3] as Map<String, dynamic>);
         _loading = false;
       });
     } catch (e) {
@@ -78,25 +66,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // Status do sistema (separado para nao quebrar o dashboard se falhar)
     try {
+      final api = context.read<ApiService>();
       final statusData = await api.getStatusSistema();
       final servicosList = (statusData['servicos'] as List<dynamic>?)
           ?.map((e) => StatusServico.fromJson(e as Map<String, dynamic>))
           .toList();
       setState(() {
         _servicos = servicosList ?? [];
-        _grafanaUrl = statusData['grafana_url'] as String?;
         _statusIndisponivel = false;
       });
     } catch (_) {
       setState(() {
         _servicos = [];
-        _grafanaUrl = null;
         _statusIndisponivel = true;
       });
     }
   }
 
-  // ── Saudacao baseada na hora ────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────────────────
 
   String _saudacao() {
     final hora = DateTime.now().hour;
@@ -105,36 +92,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return 'Boa noite';
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────
-
   int get _processosAtivos =>
       _processos.where((p) => p.status == 'ativo').length;
 
-  List<Prazo> get _prazosProximos {
-    final agora = DateTime.now();
-    final limite = agora.add(const Duration(days: 7));
-    return _prazos
-        .where((p) {
-          final data = DateTime.tryParse(p.dataLimite);
-          return data != null &&
-              data.isAfter(agora.subtract(const Duration(days: 1))) &&
-              data.isBefore(limite.add(const Duration(days: 1))) &&
-              p.status == 'pendente';
-        })
-        .toList()
-      ..sort((a, b) => a.dataLimite.compareTo(b.dataLimite));
-  }
+  bool get _todosServicosOk =>
+      !_statusIndisponivel &&
+      _servicos.isNotEmpty &&
+      _servicos.every((s) => s.isOk);
 
-  int _diasRestantes(String dataLimite) {
-    final data = DateTime.tryParse(dataLimite);
-    if (data == null) return 999;
-    return data.difference(DateTime.now()).inDays;
-  }
-
-  String _formatarMoeda(double valor) {
-    final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    return fmt.format(valor);
-  }
+  int get _servicosComFalha =>
+      _servicos.where((s) => !s.isOk).length;
 
   // ── Build ───────────────────────────────────────────────────────────
 
@@ -143,6 +110,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return MugliaScaffold(
       title: 'Dashboard',
       actions: [
+        // Indicador de status compacto na AppBar
+        _buildStatusIndicator(),
+        const SizedBox(width: 8),
         IconButton(
           onPressed: _carregarDados,
           icon: const Icon(Icons.refresh_rounded),
@@ -189,12 +159,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(height: 28),
                         _buildKpiCards(context, isWide),
                         const SizedBox(height: 28),
-                        if (isWide)
-                          _buildWideLayout(context)
-                        else
-                          _buildNarrowLayout(context),
-                        const SizedBox(height: 28),
-                        _buildStatusSistema(context),
+                        _buildProcessosRecentes(context),
+                        // Status expandivel (oculto por padrao)
+                        if (_statusExpandido) ...[
+                          const SizedBox(height: 28),
+                          _buildStatusDetalhado(context),
+                        ],
                         const SizedBox(height: 28),
                         _buildAcessoRapido(context, isWide),
                         const SizedBox(height: 32),
@@ -207,7 +177,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ── Header com saudacao ─────────────────────────────────────────────
+  // ── Header ────────────────────────────────────────────────────────
 
   Widget _buildHeader(BuildContext context) {
     final dataFormatada = DateFormat('dd/MM/yyyy').format(DateTime.now());
@@ -230,7 +200,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ── KPI Cards ───────────────────────────────────────────────────────
+  // ── KPI Cards ─────────────────────────────────────────────────────
 
   Widget _buildKpiCards(BuildContext context, bool isWide) {
     final kpis = [
@@ -243,24 +213,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         gradiente: const [Color(0xFFC9A84C), Color(0xFFE0C373)],
       ),
       _KpiData(
-        titulo: 'Prazos Proximos',
-        valor: _prazosProximos.length.toString(),
-        subtitulo: 'nos proximos 7 dias',
-        icone: Icons.schedule_rounded,
-        corIcone: MugliaTheme.warning,
-        corFundo: MugliaTheme.warning.withValues(alpha: 0.15),
-        gradiente: const [Color(0xFFFBBF24), Color(0xFFF59E0B)],
+        titulo: 'Total Processos',
+        valor: _processos.length.toString(),
+        icone: Icons.folder_rounded,
+        corIcone: MugliaTheme.info,
+        corFundo: MugliaTheme.info.withValues(alpha: 0.15),
+        gradiente: const [Color(0xFF60A5FA), Color(0xFF93C5FD)],
       ),
       _KpiData(
-        titulo: 'Financeiro Pendente',
-        valor: _formatarMoeda(_resumoFinanceiro?.pendente ?? 0),
-        icone: Icons.attach_money_rounded,
-        corIcone: MugliaTheme.error,
-        corFundo: MugliaTheme.error.withValues(alpha: 0.15),
-        gradiente: const [Color(0xFFEF4444), Color(0xFFF87171)],
-      ),
-      _KpiData(
-        titulo: 'Clientes Ativos',
+        titulo: 'Clientes',
         valor: _clientes.length.toString(),
         icone: Icons.people_rounded,
         corIcone: MugliaTheme.accent,
@@ -293,46 +254,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ── Layout wide (desktop) ──────────────────────────────────────────
-
-  Widget _buildWideLayout(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 3,
-          child: Column(
-            children: [
-              _buildProcessosRecentes(context),
-              const SizedBox(height: 20),
-              _buildResumoFinanceiro(context),
-            ],
-          ),
-        ),
-        const SizedBox(width: 20),
-        Expanded(
-          flex: 2,
-          child: _buildPrazosProximos(context),
-        ),
-      ],
-    );
-  }
-
-  // ── Layout narrow (mobile) ─────────────────────────────────────────
-
-  Widget _buildNarrowLayout(BuildContext context) {
-    return Column(
-      children: [
-        _buildProcessosRecentes(context),
-        const SizedBox(height: 20),
-        _buildPrazosProximos(context),
-        const SizedBox(height: 20),
-        _buildResumoFinanceiro(context),
-      ],
-    );
-  }
-
-  // ── Processos recentes ─────────────────────────────────────────────
+  // ── Processos recentes ────────────────────────────────────────────
 
   Widget _buildProcessosRecentes(BuildContext context) {
     final recentes = _processos.take(5).toList();
@@ -373,144 +295,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ── Prazos proximos (timeline vertical) ────────────────────────────
+  // ── Status indicator (compacto na AppBar) ─────────────────────────
 
-  Widget _buildPrazosProximos(BuildContext context) {
-    final proximos = _prazosProximos.take(5).toList();
+  Widget _buildStatusIndicator() {
+    Color cor;
+    String tooltip;
 
-    return _DashboardCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    if (_loading) {
+      cor = MugliaTheme.textMuted;
+      tooltip = 'Carregando...';
+    } else if (_statusIndisponivel) {
+      cor = MugliaTheme.textMuted;
+      tooltip = 'Status indisponivel';
+    } else if (_todosServicosOk) {
+      cor = MugliaTheme.success;
+      tooltip = 'Todos os servicos operacionais';
+    } else {
+      cor = MugliaTheme.error;
+      tooltip = '$_servicosComFalha servico(s) com falha';
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => setState(() => _statusExpandido = !_statusExpandido),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Prazos Proximos',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              TextButton.icon(
-                onPressed: () => context.go('/prazos'),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                label: const Text('Ver todos'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (proximos.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32),
-              child: Center(
-                child: Text(
-                  'Nenhum prazo nos proximos 7 dias',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            )
-          else
-            ...List.generate(proximos.length, (i) {
-              final prazo = proximos[i];
-              final isLast = i == proximos.length - 1;
-              return _PrazoTimelineItem(
-                prazo: prazo,
-                diasRestantes: _diasRestantes(prazo.dataLimite),
-                isLast: isLast,
-              );
-            }),
-        ],
-      ),
-    );
-  }
-
-  // ── Resumo financeiro ──────────────────────────────────────────────
-
-  Widget _buildResumoFinanceiro(BuildContext context) {
-    final resumo = _resumoFinanceiro;
-    final pendente = resumo?.pendente ?? 0;
-    final pago = resumo?.pago ?? 0;
-    final total = resumo?.total ?? 1;
-    final percentPago = total > 0 ? pago / total : 0.0;
-
-    return _DashboardCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Resumo Financeiro',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              TextButton.icon(
-                onPressed: () => context.go('/financeiro'),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                label: const Text('Detalhes'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Barra visual
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              height: 14,
-              child: LinearProgressIndicator(
-                value: percentPago.clamp(0.0, 1.0),
-                backgroundColor: MugliaTheme.error.withValues(alpha: 0.3),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(MugliaTheme.success),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _FinanceiroLabel(
-                  cor: MugliaTheme.success,
-                  label: 'Pago',
-                  valor: _formatarMoeda(pago),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _FinanceiroLabel(
-                  cor: MugliaTheme.error,
-                  label: 'Pendente',
-                  valor: _formatarMoeda(pendente),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Divider(color: MugliaTheme.border.withValues(alpha: 0.5)),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: MugliaTheme.textMuted,
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: cor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: cor.withValues(alpha: 0.5),
+                      blurRadius: 6,
+                      spreadRadius: 1,
                     ),
-              ),
-              Text(
-                _formatarMoeda(total),
-                style: GoogleFonts.cormorant(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: MugliaTheme.textPrimary,
+                  ],
                 ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                _statusExpandido
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+                size: 16,
+                color: MugliaTheme.textMuted,
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  // ── Status do sistema ────────────────────────────────────────────
+  // ── Status detalhado (expandivel) ─────────────────────────────────
 
   IconData _iconeServico(String nome) {
     final nomeLower = nome.toLowerCase();
@@ -525,96 +370,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Icons.dns_rounded;
   }
 
-  Widget _buildStatusSistema(BuildContext context) {
+  Widget _buildStatusDetalhado(BuildContext context) {
     return _DashboardCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: MugliaTheme.info.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.monitor_heart_rounded,
-                      color: MugliaTheme.info,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Status do Sistema',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ],
+              const Icon(
+                Icons.monitor_heart_rounded,
+                color: MugliaTheme.textMuted,
+                size: 18,
               ),
-              if (_grafanaUrl != null)
-                TextButton.icon(
-                  onPressed: () async {
-                    final uri = Uri.tryParse(_grafanaUrl!);
-                    if (uri != null) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    }
-                  },
-                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                  label: const Text('Grafana'),
-                ),
+              const SizedBox(width: 8),
+              Text(
+                'Status dos Servicos',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           if (_statusIndisponivel)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: MugliaTheme.textMuted,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: MugliaTheme.textMuted.withValues(alpha: 0.4),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Indisponivel',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 12,
-                      color: MugliaTheme.textMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+            Text(
+              'Endpoint de status indisponivel',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: MugliaTheme.textMuted,
               ),
             )
           else if (_servicos.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'Nenhum servico reportado',
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: MugliaTheme.textMuted,
-                ),
+            Text(
+              'Nenhum servico reportado',
+              style: GoogleFonts.dmSans(
+                fontSize: 13,
+                color: MugliaTheme.textMuted,
               ),
             )
           else
             Wrap(
-              spacing: 16,
-              runSpacing: 12,
+              spacing: 20,
+              runSpacing: 10,
               children: _servicos.map((servico) {
                 final cor = servico.isOk
                     ? MugliaTheme.success
@@ -624,21 +419,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 10,
-                      height: 10,
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(
                         color: cor,
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: cor.withValues(alpha: 0.4),
-                            blurRadius: 6,
-                            spreadRadius: 1,
-                          ),
-                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Icon(
                       _iconeServico(servico.nome),
                       color: MugliaTheme.textMuted,
@@ -649,7 +437,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       servico.nome,
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
-                        color: MugliaTheme.textPrimary,
+                        color: servico.isOk
+                            ? MugliaTheme.textSecondary
+                            : MugliaTheme.error,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -671,20 +461,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ── Acesso rapido ──────────────────────────────────────────────────
+  // ── Acesso rapido ─────────────────────────────────────────────────
 
   Widget _buildAcessoRapido(BuildContext context, bool isWide) {
     final botoes = [
       _AcessoRapidoData(
-        icone: Icons.chat_rounded,
-        label: 'Chat Juridico',
-        cor: MugliaTheme.primary,
-        rota: '/chat',
+        icone: Icons.auto_awesome_rounded,
+        label: 'Assistente IA',
+        cor: MugliaTheme.accent,
+        rota: '/assistente',
       ),
       _AcessoRapidoData(
         icone: Icons.add_circle_outline_rounded,
         label: 'Novo Processo',
-        cor: MugliaTheme.accent,
+        cor: MugliaTheme.primary,
         rota: '/processos',
       ),
       _AcessoRapidoData(
@@ -719,8 +509,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 // Widgets auxiliares (privados ao arquivo)
 // ══════════════════════════════════════════════════════════════════════════
 
-// ── KPI Data Model ────────────────────────────────────────────────────
-
 class _KpiData {
   final String titulo;
   final String valor;
@@ -740,8 +528,6 @@ class _KpiData {
     required this.gradiente,
   });
 }
-
-// ── KPI Card Widget ───────────────────────────────────────────────────
 
 class _KpiCard extends StatefulWidget {
   final _KpiData data;
@@ -834,8 +620,6 @@ class _KpiCardState extends State<_KpiCard> {
   }
 }
 
-// ── Dashboard Card generico ───────────────────────────────────────────
-
 class _DashboardCard extends StatelessWidget {
   final Widget child;
 
@@ -855,8 +639,6 @@ class _DashboardCard extends StatelessWidget {
     );
   }
 }
-
-// ── Processo Tile ─────────────────────────────────────────────────────
 
 class _ProcessoTile extends StatefulWidget {
   final Processo processo;
@@ -954,8 +736,6 @@ class _ProcessoTileState extends State<_ProcessoTile> {
   }
 }
 
-// ── Status Badge ──────────────────────────────────────────────────────
-
 class _StatusBadge extends StatelessWidget {
   final String status;
 
@@ -996,250 +776,6 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-// ── Prazo Timeline Item ───────────────────────────────────────────────
-
-class _PrazoTimelineItem extends StatelessWidget {
-  final Prazo prazo;
-  final int diasRestantes;
-  final bool isLast;
-
-  const _PrazoTimelineItem({
-    required this.prazo,
-    required this.diasRestantes,
-    required this.isLast,
-  });
-
-  Color get _corDias {
-    if (diasRestantes < 3) return MugliaTheme.error;
-    if (diasRestantes < 7) return MugliaTheme.warning;
-    return MugliaTheme.success;
-  }
-
-  IconData get _iconeTipo {
-    switch (prazo.tipo.toLowerCase()) {
-      case 'contestacao':
-        return Icons.edit_document;
-      case 'recurso':
-        return Icons.arrow_upward_rounded;
-      case 'audiencia':
-        return Icons.groups_rounded;
-      case 'manifestacao':
-        return Icons.record_voice_over_rounded;
-      case 'peticao':
-        return Icons.description_rounded;
-      default:
-        return Icons.event_rounded;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dataFmt = _formatarData(prazo.dataLimite);
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Timeline vertical
-          SizedBox(
-            width: 32,
-            child: Column(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: _corDias,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: _corDias.withValues(alpha: 0.4),
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                ),
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      color: MugliaTheme.border,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Conteudo
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _corDias.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      _iconeTipo,
-                      color: _corDias,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                prazo.tipo[0].toUpperCase() +
-                                    prazo.tipo.substring(1),
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: MugliaTheme.textPrimary,
-                                ),
-                              ),
-                            ),
-                            _DiasRestantesBadge(
-                              dias: diasRestantes,
-                              cor: _corDias,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          prazo.descricao ?? 'Sem descricao',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 12,
-                            color: MugliaTheme.textMuted,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          dataFmt,
-                          style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            color: MugliaTheme.textMuted.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatarData(String dataLimite) {
-    final data = DateTime.tryParse(dataLimite);
-    if (data == null) return dataLimite;
-    return DateFormat('dd/MM/yyyy').format(data);
-  }
-}
-
-// ── Badge dias restantes ──────────────────────────────────────────────
-
-class _DiasRestantesBadge extends StatelessWidget {
-  final int dias;
-  final Color cor;
-
-  const _DiasRestantesBadge({required this.dias, required this.cor});
-
-  @override
-  Widget build(BuildContext context) {
-    final texto = dias == 0
-        ? 'Hoje'
-        : dias == 1
-            ? '1 dia'
-            : '$dias dias';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: cor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        texto,
-        style: GoogleFonts.dmSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: cor,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Financeiro Label ──────────────────────────────────────────────────
-
-class _FinanceiroLabel extends StatelessWidget {
-  final Color cor;
-  final String label;
-  final String valor;
-
-  const _FinanceiroLabel({
-    required this.cor,
-    required this.label,
-    required this.valor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: cor,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: MugliaTheme.textMuted,
-                ),
-              ),
-              Text(
-                valor,
-                style: GoogleFonts.cormorant(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: MugliaTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Acesso Rapido Data ────────────────────────────────────────────────
-
 class _AcessoRapidoData {
   final IconData icone;
   final String label;
@@ -1253,8 +789,6 @@ class _AcessoRapidoData {
     required this.rota,
   });
 }
-
-// ── Acesso Rapido Button ──────────────────────────────────────────────
 
 class _AcessoRapidoButton extends StatefulWidget {
   final _AcessoRapidoData data;
@@ -1271,53 +805,37 @@ class _AcessoRapidoButtonState extends State<_AcessoRapidoButton> {
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.data;
-
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: () => context.go(d.rota),
+        onTap: () => context.go(widget.data.rota),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          width: widget.isWide ? 200 : null,
+          width: widget.isWide ? 180 : null,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: _hovered ? MugliaTheme.cardHover : MugliaTheme.card,
+            color: _hovered
+                ? widget.data.cor.withValues(alpha: 0.1)
+                : MugliaTheme.card,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: _hovered ? d.cor.withValues(alpha: 0.4) : MugliaTheme.border,
+              color: _hovered
+                  ? widget.data.cor.withValues(alpha: 0.3)
+                  : MugliaTheme.border,
             ),
-            gradient: _hovered
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      d.cor.withValues(alpha: 0.1),
-                      MugliaTheme.card,
-                    ],
-                  )
-                : null,
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: widget.isWide ? MainAxisSize.max : MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: d.cor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(d.icone, color: d.cor, size: 20),
-              ),
-              const SizedBox(width: 12),
+              Icon(widget.data.icone, color: widget.data.cor, size: 20),
+              const SizedBox(width: 10),
               Text(
-                d.label,
+                widget.data.label,
                 style: GoogleFonts.dmSans(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: MugliaTheme.textPrimary,
+                  color: _hovered ? widget.data.cor : MugliaTheme.textPrimary,
                 ),
               ),
             ],
