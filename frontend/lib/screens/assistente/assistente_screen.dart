@@ -419,7 +419,7 @@ class _AssistenteScreenState extends State<AssistenteScreen>
             ),
             const SizedBox(height: 20),
             Text(
-              'Assistente Muglia',
+              'Assistente Virtual',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: MugliaTheme.textPrimary,
                   ),

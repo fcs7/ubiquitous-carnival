@@ -13,51 +13,66 @@ class AppDrawer extends StatelessWidget {
     return Drawer(
       child: Column(
         children: [
-          // Header com logo
+          // Header — branding Escritorio Virtual
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  MugliaTheme.primaryDark,
-                  MugliaTheme.primary,
-                ],
+            decoration: BoxDecoration(
+              color: MugliaTheme.background,
+              border: Border(
+                bottom: BorderSide(
+                  color: MugliaTheme.primary.withValues(alpha: 0.3),
+                  width: 1,
+                ),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Icone com borda dourada
                 Container(
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    border: Border.all(
+                      color: MugliaTheme.primary.withValues(alpha: 0.6),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
-                    Icons.balance,
-                    color: Colors.white,
-                    size: 28,
+                    Icons.account_balance_rounded,
+                    color: MugliaTheme.primary,
+                    size: 26,
                   ),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Muglia',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 24,
+                  'Escritorio',
+                  style: GoogleFonts.cormorant(
+                    fontSize: 26,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: MugliaTheme.textPrimary,
+                    height: 1.1,
                   ),
                 ),
-                const SizedBox(height: 4),
                 Text(
-                  'Gestao Juridica',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.7),
+                  'Virtual',
+                  style: GoogleFonts.cormorant(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: MugliaTheme.primary,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Plataforma Juridica',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: MugliaTheme.textMuted,
+                    letterSpacing: 1.5,
                   ),
                 ),
               ],
@@ -104,8 +119,8 @@ class AppDrawer extends StatelessWidget {
           ),
 
           _DrawerItem(
-            icon: Icons.assistant_rounded,
-            label: 'Assistente',
+            icon: Icons.auto_awesome_rounded,
+            label: 'Assistente IA',
             path: '/assistente',
             isSelected: currentPath.startsWith('/assistente'),
             accentColor: MugliaTheme.accent,
@@ -155,15 +170,14 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected
-        ? (accentColor ?? MugliaTheme.primary)
-        : MugliaTheme.textSecondary;
+    final activeColor = accentColor ?? MugliaTheme.primary;
+    final color = isSelected ? activeColor : MugliaTheme.textSecondary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Material(
         color: isSelected
-            ? (accentColor ?? MugliaTheme.primary).withValues(alpha: 0.1)
+            ? activeColor.withValues(alpha: 0.1)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
@@ -180,7 +194,7 @@ class _DrawerItem extends StatelessWidget {
                 const SizedBox(width: 16),
                 Text(
                   label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     color: isSelected ? MugliaTheme.textPrimary : color,
@@ -192,7 +206,7 @@ class _DrawerItem extends StatelessWidget {
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: accentColor ?? MugliaTheme.primary,
+                      color: activeColor,
                       shape: BoxShape.circle,
                     ),
                   ),

@@ -15,7 +15,7 @@ class ConfiguracoesScreen extends StatefulWidget {
 class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
   // ── Dados do Escritorio ──────────────────
   final _nomeController =
-      TextEditingController(text: 'Escritorio Muglia Advocacia');
+      TextEditingController(text: 'Escritorio Virtual Advocacia');
   final _cnpjController =
       TextEditingController(text: '12.345.678/0001-90');
   final _oabController = TextEditingController(text: 'OAB/SP 123.456');
@@ -24,7 +24,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
   final _telefoneController =
       TextEditingController(text: '(11) 3456-7890');
   final _emailController =
-      TextEditingController(text: 'contato@muglia.adv.br');
+      TextEditingController(text: 'contato@escritoriovirtual.adv.br');
 
   // ── APIs ─────────────────────────────────
   final _openaiKeyController =
@@ -99,7 +99,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
           const SizedBox(width: 12),
           Text(
             titulo,
-            style: GoogleFonts.plusJakartaSans(
+            style: GoogleFonts.cormorant(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: MugliaTheme.textPrimary,
@@ -126,7 +126,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
         keyboardType: keyboardType,
         maxLines: maxLines,
         obscureText: obscureText,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.dmSans(
           fontSize: 14,
           color: MugliaTheme.textPrimary,
         ),
@@ -151,7 +151,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
         controller: controller,
         obscureText: !visivel,
         style: visivel
-            ? GoogleFonts.inter(fontSize: 14, color: MugliaTheme.textPrimary)
+            ? GoogleFonts.dmSans(fontSize: 14, color: MugliaTheme.textPrimary)
             : GoogleFonts.jetBrainsMono(fontSize: 14, color: MugliaTheme.textPrimary),
         decoration: InputDecoration(
           labelText: label,
@@ -297,7 +297,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
                       labelText: 'Modelo Claude padrao',
                     ),
                     dropdownColor: MugliaTheme.surfaceVariant,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                       fontSize: 14,
                       color: MugliaTheme.textPrimary,
                     ),
@@ -361,7 +361,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
                         children: [
                           Text(
                             'Notificacoes WhatsApp',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.dmSans(
                               fontSize: 14,
                               color: MugliaTheme.textPrimary,
                             ),
@@ -369,7 +369,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Enviar atualizacoes de processos via WhatsApp',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.dmSans(
                               fontSize: 12,
                               color: MugliaTheme.textMuted,
                             ),
@@ -409,7 +409,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
               children: [
                 Text(
                   'Configure agentes de IA personalizados para automatizar tarefas juridicas.',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 14,
                     color: MugliaTheme.textSecondary,
                   ),
@@ -422,7 +422,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
                     icon: const Icon(Icons.settings_rounded, size: 18),
                     label: Text(
                       'Gerenciar agentes',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -460,7 +460,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
                 icon: const Icon(Icons.save_rounded),
                 label: Text(
                   'Salvar configuracoes',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),

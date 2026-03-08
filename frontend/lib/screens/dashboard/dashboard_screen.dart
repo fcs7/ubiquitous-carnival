@@ -240,7 +240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         icone: Icons.gavel_rounded,
         corIcone: MugliaTheme.primary,
         corFundo: MugliaTheme.primary.withValues(alpha: 0.15),
-        gradiente: const [Color(0xFF6C63FF), Color(0xFF9D97FF)],
+        gradiente: const [Color(0xFFC9A84C), Color(0xFFE0C373)],
       ),
       _KpiData(
         titulo: 'Prazos Proximos',
@@ -265,7 +265,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         icone: Icons.people_rounded,
         corIcone: MugliaTheme.accent,
         corFundo: MugliaTheme.accent.withValues(alpha: 0.15),
-        gradiente: const [Color(0xFF03DAC6), Color(0xFF5EEAD4)],
+        gradiente: const [Color(0xFF2DD4A8), Color(0xFF5EEAD4)],
       ),
     ];
 
@@ -497,7 +497,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               Text(
                 _formatarMoeda(total),
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.cormorant(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: MugliaTheme.textPrimary,
@@ -591,7 +591,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: 10),
                   Text(
                     'Indisponivel',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                       fontSize: 12,
                       color: MugliaTheme.textMuted,
                       fontWeight: FontWeight.w500,
@@ -605,7 +605,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'Nenhum servico reportado',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: MugliaTheme.textMuted,
                 ),
@@ -647,7 +647,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(width: 4),
                     Text(
                       servico.nome,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         color: MugliaTheme.textPrimary,
                         fontWeight: FontWeight.w500,
@@ -800,7 +800,7 @@ class _KpiCardState extends State<_KpiCard> {
             const SizedBox(height: 8),
             Text(
               widget.data.valor,
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.cormorant(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: MugliaTheme.textPrimary,
@@ -811,7 +811,7 @@ class _KpiCardState extends State<_KpiCard> {
             const SizedBox(height: 2),
             Text(
               widget.data.titulo,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 13,
                 color: MugliaTheme.textMuted,
                 fontWeight: FontWeight.w500,
@@ -821,7 +821,7 @@ class _KpiCardState extends State<_KpiCard> {
               const SizedBox(height: 2),
               Text(
                 widget.data.subtitulo!,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 11,
                   color: MugliaTheme.textMuted.withValues(alpha: 0.7),
                 ),
@@ -911,7 +911,7 @@ class _ProcessoTileState extends State<_ProcessoTile> {
                   children: [
                     Text(
                       p.cnj,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.dmSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: MugliaTheme.textPrimary,
@@ -920,7 +920,7 @@ class _ProcessoTileState extends State<_ProcessoTile> {
                     const SizedBox(height: 2),
                     Text(
                       p.classeNome ?? 'Classe nao informada',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.dmSans(
                         fontSize: 12,
                         color: MugliaTheme.textMuted,
                       ),
@@ -938,7 +938,7 @@ class _ProcessoTileState extends State<_ProcessoTile> {
                   const SizedBox(height: 4),
                   Text(
                     p.aliasTribunal,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.dmSans(
                       fontSize: 11,
                       color: MugliaTheme.textMuted,
                       fontWeight: FontWeight.w500,
@@ -986,7 +986,7 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         status[0].toUpperCase() + status.substring(1),
-        style: GoogleFonts.inter(
+        style: GoogleFonts.dmSans(
           fontSize: 11,
           fontWeight: FontWeight.w600,
           color: cor,
@@ -1101,7 +1101,7 @@ class _PrazoTimelineItem extends StatelessWidget {
                               child: Text(
                                 prazo.tipo[0].toUpperCase() +
                                     prazo.tipo.substring(1),
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: MugliaTheme.textPrimary,
@@ -1117,7 +1117,7 @@ class _PrazoTimelineItem extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           prazo.descricao ?? 'Sem descricao',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.dmSans(
                             fontSize: 12,
                             color: MugliaTheme.textMuted,
                           ),
@@ -1127,7 +1127,7 @@ class _PrazoTimelineItem extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           dataFmt,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.dmSans(
                             fontSize: 11,
                             color: MugliaTheme.textMuted.withValues(alpha: 0.7),
                           ),
@@ -1175,7 +1175,7 @@ class _DiasRestantesBadge extends StatelessWidget {
       ),
       child: Text(
         texto,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.dmSans(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: cor,
@@ -1217,14 +1217,14 @@ class _FinanceiroLabel extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 12,
                   color: MugliaTheme.textMuted,
                 ),
               ),
               Text(
                 valor,
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.cormorant(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: MugliaTheme.textPrimary,
@@ -1314,7 +1314,7 @@ class _AcessoRapidoButtonState extends State<_AcessoRapidoButton> {
               const SizedBox(width: 12),
               Text(
                 d.label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: MugliaTheme.textPrimary,

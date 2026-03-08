@@ -199,7 +199,7 @@ class _ProcessoDetalheScreenState extends State<ProcessoDetalheScreen> {
                 const SizedBox(width: 10),
                 Text(
                   processo.status.toUpperCase(),
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: cor,
@@ -441,7 +441,7 @@ class _InfoItem extends StatelessWidget {
               children: [
                 Text(
                   rotulo,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.dmSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: MugliaTheme.textMuted,
@@ -520,7 +520,7 @@ class _ParteCard extends StatelessWidget {
             ),
             child: Text(
               parte.papel.toUpperCase(),
-              style: GoogleFonts.inter(
+              style: GoogleFonts.dmSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: corPapel,
@@ -633,7 +633,7 @@ class _TimelineItem extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   'NOTIFICADO',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                     color: MugliaTheme.accent,

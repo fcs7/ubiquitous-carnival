@@ -10,18 +10,18 @@ void main() {
       providers: [
         Provider<ApiService>(create: (_) => ApiService()),
       ],
-      child: const MugliaApp(),
+      child: const EscritorioVirtualApp(),
     ),
   );
 }
 
-class MugliaApp extends StatelessWidget {
-  const MugliaApp({super.key});
+class EscritorioVirtualApp extends StatelessWidget {
+  const EscritorioVirtualApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Muglia - Gestao Juridica',
+      title: 'Escritorio Virtual',
       debugShowCheckedModeBanner: false,
       theme: MugliaTheme.darkTheme,
       routerConfig: router,

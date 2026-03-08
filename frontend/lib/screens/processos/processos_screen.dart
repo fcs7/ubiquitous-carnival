@@ -355,7 +355,7 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.dmSans(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: cor,

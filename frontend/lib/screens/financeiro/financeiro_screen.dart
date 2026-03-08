@@ -349,7 +349,7 @@ class _ResumoCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               valor,
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.cormorant(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
                 color: MugliaTheme.textPrimary,
@@ -396,7 +396,7 @@ class _FiltroChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.dmSans(
             fontSize: 13,
             fontWeight: selecionado ? FontWeight.w600 : FontWeight.w400,
             color: selecionado ? corEfetiva : MugliaTheme.textSecondary,
@@ -506,7 +506,7 @@ class _LancamentoCard extends StatelessWidget {
                               const SizedBox(width: 4),
                               Text(
                                 _labelTipo,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.dmSans(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: MugliaTheme.primaryLight,
@@ -525,7 +525,7 @@ class _LancamentoCard extends StatelessWidget {
                           ),
                           child: Text(
                             isPago ? 'Pago' : 'Pendente',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.dmSans(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: _corStatus,
@@ -548,7 +548,7 @@ class _LancamentoCard extends StatelessWidget {
                     // Valor grande
                     Text(
                       currencyFormat.format(lancamento.valor),
-                      style: GoogleFonts.plusJakartaSans(
+                      style: GoogleFonts.cormorant(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: isPago
@@ -642,7 +642,7 @@ class _LancamentoCard extends StatelessWidget {
             children: [
               Text(
                 'Marcar pago',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: MugliaTheme.success,

@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class MugliaTheme {
-  // Cores principais
-  static const Color primary = Color(0xFF6C63FF);
-  static const Color primaryLight = Color(0xFF9D97FF);
-  static const Color primaryDark = Color(0xFF4A42D4);
-  static const Color accent = Color(0xFF03DAC6);
-  static const Color accentDark = Color(0xFF00B3A1);
+  // ─── Paleta Obsidian & Ouro ─────────────────────────────────────────
+  // Dourado quente — prestigio, confianca, autoridade juridica
+  static const Color primary = Color(0xFFC9A84C);
+  static const Color primaryLight = Color(0xFFE0C373);
+  static const Color primaryDark = Color(0xFF9E7D2A);
+  // Esmeralda — equilíbrio, status, assistente IA
+  static const Color accent = Color(0xFF2DD4A8);
+  static const Color accentDark = Color(0xFF1BA07E);
 
-  // Superficies escuras
-  static const Color surface = Color(0xFF1E1E2E);
-  static const Color surfaceVariant = Color(0xFF262638);
-  static const Color background = Color(0xFF14141F);
-  static const Color card = Color(0xFF1E1E30);
-  static const Color cardHover = Color(0xFF252540);
+  // Superficies — profundidade com subtom azulado
+  static const Color surface = Color(0xFF161822);
+  static const Color surfaceVariant = Color(0xFF1E2030);
+  static const Color background = Color(0xFF0C0E14);
+  static const Color card = Color(0xFF1A1D2B);
+  static const Color cardHover = Color(0xFF222539);
 
   // Status
   static const Color success = Color(0xFF4ADE80);
@@ -22,17 +24,17 @@ class MugliaTheme {
   static const Color error = Color(0xFFEF4444);
   static const Color info = Color(0xFF60A5FA);
 
-  // Texto
-  static const Color textPrimary = Color(0xFFF1F1F6);
-  static const Color textSecondary = Color(0xFF9CA3AF);
-  static const Color textMuted = Color(0xFF6B7280);
+  // Texto — brancos quentes
+  static const Color textPrimary = Color(0xFFEAEDF3);
+  static const Color textSecondary = Color(0xFF8B90A0);
+  static const Color textMuted = Color(0xFF5A5F72);
 
   // Bordas
-  static const Color border = Color(0xFF2D2D44);
-  static const Color borderLight = Color(0xFF3D3D5C);
+  static const Color border = Color(0xFF252836);
+  static const Color borderLight = Color(0xFF343848);
 
   static ThemeData get darkTheme {
-    final baseText = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+    final baseText = GoogleFonts.dmSansTextTheme(ThemeData.dark().textTheme);
 
     return ThemeData(
       useMaterial3: true,
@@ -45,59 +47,63 @@ class MugliaTheme {
         secondaryContainer: accentDark,
         surface: surface,
         error: error,
-        onPrimary: Colors.white,
-        onSecondary: Colors.black,
+        onPrimary: Color(0xFF1A1200),
+        onSecondary: Color(0xFF00201A),
         onSurface: textPrimary,
         onError: Colors.white,
         outline: border,
       ),
       textTheme: baseText.copyWith(
-        displayLarge: GoogleFonts.plusJakartaSans(
-          fontSize: 32,
+        // Serif elegante para titulos — autoridade juridica
+        displayLarge: GoogleFonts.cormorant(
+          fontSize: 34,
           fontWeight: FontWeight.w700,
           color: textPrimary,
+          letterSpacing: -0.5,
         ),
-        displayMedium: GoogleFonts.plusJakartaSans(
+        displayMedium: GoogleFonts.cormorant(
           fontSize: 28,
           fontWeight: FontWeight.w700,
           color: textPrimary,
+          letterSpacing: -0.3,
         ),
-        headlineLarge: GoogleFonts.plusJakartaSans(
-          fontSize: 24,
+        headlineLarge: GoogleFonts.cormorant(
+          fontSize: 26,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        headlineMedium: GoogleFonts.plusJakartaSans(
-          fontSize: 20,
+        headlineMedium: GoogleFonts.cormorant(
+          fontSize: 22,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        titleLarge: GoogleFonts.plusJakartaSans(
+        // Sans-serif moderna para conteudo
+        titleLarge: GoogleFonts.dmSans(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        titleMedium: GoogleFonts.plusJakartaSans(
+        titleMedium: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
-        bodyLarge: GoogleFonts.inter(
+        bodyLarge: GoogleFonts.dmSans(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: textPrimary,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: GoogleFonts.dmSans(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: textSecondary,
         ),
-        bodySmall: GoogleFonts.inter(
+        bodySmall: GoogleFonts.dmSans(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: textMuted,
         ),
-        labelLarge: GoogleFonts.inter(
+        labelLarge: GoogleFonts.dmSans(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: textPrimary,
@@ -108,7 +114,7 @@ class MugliaTheme {
         elevation: 0,
         scrolledUnderElevation: 2,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: GoogleFonts.dmSans(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textPrimary,
@@ -119,7 +125,7 @@ class MugliaTheme {
         color: card,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           side: const BorderSide(color: border, width: 1),
         ),
         margin: EdgeInsets.zero,
@@ -144,19 +150,19 @@ class MugliaTheme {
           borderSide: const BorderSide(color: error),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        hintStyle: GoogleFonts.inter(color: textMuted, fontSize: 14),
-        labelStyle: GoogleFonts.inter(color: textSecondary, fontSize: 14),
+        hintStyle: GoogleFonts.dmSans(color: textMuted, fontSize: 14),
+        labelStyle: GoogleFonts.dmSans(color: textSecondary, fontSize: 14),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: Colors.white,
+          foregroundColor: const Color(0xFF1A1200),
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.inter(
+          textStyle: GoogleFonts.dmSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -170,7 +176,7 @@ class MugliaTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.inter(
+          textStyle: GoogleFonts.dmSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -179,7 +185,7 @@ class MugliaTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primary,
-          textStyle: GoogleFonts.inter(
+          textStyle: GoogleFonts.dmSans(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -187,7 +193,7 @@ class MugliaTheme {
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: primary,
-        foregroundColor: Colors.white,
+        foregroundColor: Color(0xFF1A1200),
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(16)),
@@ -196,7 +202,7 @@ class MugliaTheme {
       chipTheme: ChipThemeData(
         backgroundColor: surfaceVariant,
         selectedColor: primaryDark,
-        labelStyle: GoogleFonts.inter(fontSize: 12, color: textPrimary),
+        labelStyle: GoogleFonts.dmSans(fontSize: 12, color: textPrimary),
         side: const BorderSide(color: border),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
@@ -211,15 +217,15 @@ class MugliaTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        titleTextStyle: GoogleFonts.plusJakartaSans(
-          fontSize: 20,
+        titleTextStyle: GoogleFonts.cormorant(
+          fontSize: 22,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: surfaceVariant,
-        contentTextStyle: GoogleFonts.inter(color: textPrimary),
+        contentTextStyle: GoogleFonts.dmSans(color: textPrimary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),

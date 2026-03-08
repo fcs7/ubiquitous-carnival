@@ -293,7 +293,7 @@ class _PrazosScreenState extends State<PrazosScreen>
                       _pendentesCount > 0
                           ? '$_pendentesCount prazo${_pendentesCount == 1 ? '' : 's'} pendente${_pendentesCount == 1 ? '' : 's'}'
                           : 'Nenhum prazo pendente',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.dmSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: _pendentesCount > 0
@@ -331,7 +331,7 @@ class _PrazosScreenState extends State<PrazosScreen>
       onSelected: (_) => setState(() => _filtro = filtro),
       selectedColor: MugliaTheme.primaryDark,
       checkmarkColor: Colors.white,
-      labelStyle: GoogleFonts.inter(
+      labelStyle: GoogleFonts.dmSans(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: selecionado ? Colors.white : MugliaTheme.textSecondary,
@@ -443,7 +443,7 @@ class _PrazosScreenState extends State<PrazosScreen>
               const SizedBox(width: 10),
               Text(
                 titulo,
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.cormorant(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: corGrupo,
@@ -452,7 +452,7 @@ class _PrazosScreenState extends State<PrazosScreen>
               const SizedBox(width: 8),
               Text(
                 '(${prazos.length})',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.dmSans(
                   fontSize: 13,
                   color: MugliaTheme.textMuted,
                 ),
@@ -530,7 +530,7 @@ class _PrazosScreenState extends State<PrazosScreen>
                                   Text(
                                     prazo.tipo[0].toUpperCase() +
                                         prazo.tipo.substring(1),
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.dmSans(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: _corTipo(prazo.tipo),
@@ -560,7 +560,7 @@ class _PrazosScreenState extends State<PrazosScreen>
                                           : dias == 1
                                               ? 'Amanha'
                                               : '$dias dias',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: _corUrgencia(dias),
@@ -580,7 +580,7 @@ class _PrazosScreenState extends State<PrazosScreen>
                                 ),
                                 child: Text(
                                   'Concluido',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.dmSans(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: MugliaTheme.success,
@@ -597,7 +597,7 @@ class _PrazosScreenState extends State<PrazosScreen>
                           prazo.descricao ?? 'Sem descricao',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.dmSans(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: concluido || animandoConclusao
@@ -623,7 +623,7 @@ class _PrazosScreenState extends State<PrazosScreen>
                             const SizedBox(width: 4),
                             Text(
                               _formatarData(prazo.dataLimite),
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 12,
                                 color: MugliaTheme.textMuted,
                               ),
@@ -637,7 +637,7 @@ class _PrazosScreenState extends State<PrazosScreen>
                             const SizedBox(width: 4),
                             Text(
                               'Processo #${prazo.processoId}',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.dmSans(
                                 fontSize: 12,
                                 color: MugliaTheme.textMuted,
                               ),
