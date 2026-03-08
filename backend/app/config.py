@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     google_drive_pasta_processos: str = "Processos"
     google_drive_pasta_clientes: str = "Clientes"
 
+    # PDF extraction
+    pdf_cache_dir: str = "/tmp/muglia_pdf_cache"
+    pdf_max_bytes: int = 50 * 1024 * 1024  # 50MB
+    pdf_max_chars: int = 100_000
+    pdf_paginas_default: int = 10
+    pdf_busca_max_docs: int = 50
+
     class Config:
         env_file = ".env"
         extra = "ignore"
