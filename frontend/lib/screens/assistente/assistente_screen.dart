@@ -284,7 +284,7 @@ class _AssistenteScreenState extends State<AssistenteScreen>
 
   Widget _buildInputBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
       decoration: BoxDecoration(
         color: MugliaTheme.surface,
         border: Border(
@@ -301,10 +301,10 @@ class _AssistenteScreenState extends State<AssistenteScreen>
           children: [
             Expanded(
               child: Container(
-                constraints: const BoxConstraints(maxHeight: 140),
+                constraints: const BoxConstraints(maxHeight: 120),
                 decoration: BoxDecoration(
                   color: MugliaTheme.surfaceVariant,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: MugliaTheme.border),
                 ),
                 child: TextField(
@@ -315,19 +315,22 @@ class _AssistenteScreenState extends State<AssistenteScreen>
                   textInputAction: TextInputAction.newline,
                   style: const TextStyle(
                     color: MugliaTheme.textPrimary,
-                    fontSize: 15,
+                    fontSize: 14,
                   ),
                   decoration: InputDecoration(
                     hintText: _enviando
                         ? 'Aguardando resposta...'
                         : 'Pergunte algo ao assistente...',
-                    hintStyle: const TextStyle(color: MugliaTheme.textMuted),
+                    hintStyle: const TextStyle(
+                      color: MugliaTheme.textMuted,
+                      fontSize: 14,
+                    ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
+                      horizontal: 16,
+                      vertical: 6,
                     ),
                     isDense: true,
                   ),
@@ -335,7 +338,7 @@ class _AssistenteScreenState extends State<AssistenteScreen>
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             AnimatedBuilder(
               animation: _sendController,
               builder: (context, child) {
@@ -344,23 +347,27 @@ class _AssistenteScreenState extends State<AssistenteScreen>
                   child: child,
                 );
               },
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _enviando
-                      ? MugliaTheme.primaryDark.withValues(alpha: 0.5)
-                      : MugliaTheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  onPressed: _enviando ? null : () => _enviarMensagem(),
-                  icon: Icon(
-                    _enviando
-                        ? Icons.hourglass_top_rounded
-                        : Icons.send_rounded,
-                    color: Colors.white,
-                    size: 22,
+              child: SizedBox(
+                width: 36,
+                height: 36,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _enviando
+                        ? MugliaTheme.primaryDark.withValues(alpha: 0.5)
+                        : MugliaTheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: _enviando ? null : () => _enviarMensagem(),
+                    icon: Icon(
+                      _enviando
+                          ? Icons.hourglass_top_rounded
+                          : Icons.send_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                 ),
               ),
