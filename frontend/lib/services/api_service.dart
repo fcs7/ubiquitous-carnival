@@ -266,6 +266,12 @@ class ApiService {
     return _handleMap(resp);
   }
 
+  // ── Status do Sistema ────────────────────
+  Future<Map<String, dynamic>> getStatusSistema() async {
+    final resp = await _client.get(Uri.parse('$baseUrl/api/status'));
+    return _handleMap(resp);
+  }
+
   // ── Health ────────────────────────────────
   Future<bool> healthCheck() async {
     try {

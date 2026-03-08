@@ -1,0 +1,66 @@
+# Configuracao do Prometheus para o projeto Muglia
+# Sistema juridico: backend FastAPI, Celery workers, PostgreSQL, Redis, Evolution API
+
+global:
+  scrape_interval: 15s       # Intervalo padrao de coleta de metricas
+  evaluation_interval: 15s   # Intervalo de avaliacao de regras de alerta
+
+# Arquivos de regras de alerta
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# Configuracao do Alertmanager
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Configuracoes de coleta de metricas por servico
+scrape_configs:
+  # Prometheus monitora a si mesmo
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          servico: "prometheus"
+
+  # Backend FastAPI - API principal do sistema juridico
+  - job_name: "backend"
+    static_configs:
+      - targets: ["backend:8000"]
+        labels:
+          servico: "backend"
+    metrics_path: /metrics
+
+  # Celery Worker - processamento de tarefas assincronas (monitoramento DataJud, IA, WhatsApp)
+  - job_name: "worker"
+    static_configs:
+      - targets: ["worker:9100"]
+        labels:
+          servico: "worker"
+    metrics_path: /metrics
+
+  # PostgreSQL Exporter - metricas do banco de dados
+  - job_name: "postgres-exporter"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          servico: "postgres"
+    metrics_path: /metrics
+
+  # Redis Exporter - metricas do broker de mensagens (Celery)
+  - job_name: "redis-exporter"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          servico: "redis"
+    metrics_path: /metrics
+
+  # cAdvisor - metricas de containers Docker (CPU, memoria, rede, disco)
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          servico: "cadvisor"
+    metrics_path: /metrics

@@ -3,11 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:muglia/models/cliente.dart';
 import 'package:muglia/models/financeiro.dart';
 import 'package:muglia/models/prazo.dart';
 import 'package:muglia/models/processo.dart';
+import 'package:muglia/models/status_servico.dart';
 import 'package:muglia/services/api_service.dart';
 import 'package:muglia/theme/muglia_theme.dart';
 import 'package:muglia/widgets/muglia_scaffold.dart';
@@ -27,6 +29,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Cliente> _clientes = [];
   List<Prazo> _prazos = [];
   FinanceiroResumo? _resumoFinanceiro;
+  List<StatusServico> _servicos = [];
+  String? _grafanaUrl;
+  bool _statusIndisponivel = false;
 
   @override
   void initState() {
@@ -68,6 +73,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         _loading = false;
         _erro = 'Erro ao carregar dados: $e';
+      });
+    }
+
+    // Status do sistema (separado para nao quebrar o dashboard se falhar)
+    try {
+      final statusData = await api.getStatusSistema();
+      final servicosList = (statusData['servicos'] as List<dynamic>?)
+          ?.map((e) => StatusServico.fromJson(e as Map<String, dynamic>))
+          .toList();
+      setState(() {
+        _servicos = servicosList ?? [];
+        _grafanaUrl = statusData['grafana_url'] as String?;
+        _statusIndisponivel = false;
+      });
+    } catch (_) {
+      setState(() {
+        _servicos = [];
+        _grafanaUrl = null;
+        _statusIndisponivel = true;
       });
     }
   }
@@ -169,6 +193,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _buildWideLayout(context)
                         else
                           _buildNarrowLayout(context),
+                        const SizedBox(height: 28),
+                        _buildStatusSistema(context),
                         const SizedBox(height: 28),
                         _buildAcessoRapido(context, isWide),
                         const SizedBox(height: 32),
@@ -479,6 +505,167 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── Status do sistema ────────────────────────────────────────────
+
+  IconData _iconeServico(String nome) {
+    final nomeLower = nome.toLowerCase();
+    if (nomeLower.contains('postgres')) return Icons.storage_rounded;
+    if (nomeLower.contains('redis')) return Icons.memory_rounded;
+    if (nomeLower.contains('celery') || nomeLower.contains('worker')) {
+      return Icons.work_rounded;
+    }
+    if (nomeLower.contains('evolution') || nomeLower.contains('whatsapp')) {
+      return Icons.chat_rounded;
+    }
+    return Icons.dns_rounded;
+  }
+
+  Widget _buildStatusSistema(BuildContext context) {
+    return _DashboardCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: MugliaTheme.info.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.monitor_heart_rounded,
+                      color: MugliaTheme.info,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Status do Sistema',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
+              ),
+              if (_grafanaUrl != null)
+                TextButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.tryParse(_grafanaUrl!);
+                    if (uri != null) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('Grafana'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (_statusIndisponivel)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: MugliaTheme.textMuted,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: MugliaTheme.textMuted.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Indisponivel',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: MugliaTheme.textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (_servicos.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Nenhum servico reportado',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: MugliaTheme.textMuted,
+                ),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              children: _servicos.map((servico) {
+                final cor = servico.isOk
+                    ? MugliaTheme.success
+                    : MugliaTheme.error;
+
+                final indicador = Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: cor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: cor.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      _iconeServico(servico.nome),
+                      color: MugliaTheme.textMuted,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      servico.nome,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: MugliaTheme.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                );
+
+                if (!servico.isOk && servico.detalhes != null) {
+                  return Tooltip(
+                    message: servico.detalhes!,
+                    child: indicador,
+                  );
+                }
+
+                return indicador;
+              }).toList(),
+            ),
         ],
       ),
     );

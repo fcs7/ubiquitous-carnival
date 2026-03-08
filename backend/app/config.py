@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     vindi_webhook_secret: str = ""
     vindi_api_key: str = ""
+    # Monitoramento
+    grafana_url: str = "http://localhost:3001"
+    # Alertas
+    alert_whatsapp_number: str = ""
     # Google Drive
     google_credentials_path: str = "/run/secrets/google_credentials.json"
     google_drive_root_folder_id: str = ""

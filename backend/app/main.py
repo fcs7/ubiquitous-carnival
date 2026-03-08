@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.database import engine, Base, SessionLocal
 from app.models import Usuario
-from app.routers import agentes, assistente, chat, clientes, documentos, financeiro, prazos, processos, tags, vindi, vindi_webhook, whatsapp
+from app.routers import agentes, assistente, chat, clientes, documentos, financeiro, prazos, processos, status, tags, vindi, vindi_webhook, webhooks, whatsapp
 
 
 @asynccontextmanager
@@ -27,6 +28,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Muglia", version="1.0.0", lifespan=lifespan)
 
+Instrumentator().instrument(app).expose(app)
+
 app.include_router(agentes.router)
 app.include_router(assistente.router)
 app.include_router(chat.router)
@@ -35,10 +38,13 @@ app.include_router(documentos.router)
 app.include_router(financeiro.router)
 app.include_router(prazos.router)
 app.include_router(processos.router)
+app.include_router(status.router)
 app.include_router(vindi_webhook.router)
 app.include_router(vindi.router)
 app.include_router(tags.router)
 app.include_router(whatsapp.router)
+
+app.include_router(webhooks.router)
 
 
 @app.get("/health")
