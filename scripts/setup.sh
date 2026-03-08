@@ -30,6 +30,7 @@ SKIP_FIREWALL=false
 SKIP_SSL=false
 SKIP_SYSTEMD=false
 FORCE_RECONFIGURE=false
+SSH_PORT=""
 
 # Caminhos derivados (definidos apos parse_args)
 STATE_FILE=""
@@ -40,6 +41,9 @@ SECRETS_DIR=""
 # Deteccao de OS
 OS_ID=""
 OS_VERSION=""
+
+# Nginx existente no host
+NGINX_ON_HOST=false
 
 # ─── Cores e formatacao ─────────────────────────────────────────────────────
 if [[ -t 1 ]]; then
@@ -195,6 +199,7 @@ Opcoes:
   --config <arquivo>      Arquivo de configuracao (modo nao-interativo)
   --install-dir <caminho> Diretorio de instalacao (default: $DEFAULT_INSTALL_DIR)
   --branch <branch>       Branch do Git (default: $DEFAULT_BRANCH)
+  --ssh-port <porta>      Porta SSH do servidor (default: auto-detecta)
   --skip-firewall         Nao configura firewall (ufw)
   --skip-ssl              Nao configura SSL/HTTPS
   --skip-systemd          Nao instala servico systemd
@@ -239,6 +244,10 @@ parse_args() {
             --branch)
                 [[ -z "${2:-}" ]] && { log_error "--branch requer um nome"; exit 1; }
                 REPO_BRANCH="$2"
+                shift 2 ;;
+            --ssh-port)
+                [[ -z "${2:-}" ]] && { log_error "--ssh-port requer um numero"; exit 1; }
+                SSH_PORT="$2"
                 shift 2 ;;
             --skip-firewall)
                 SKIP_FIREWALL=true
@@ -873,6 +882,16 @@ configure_firewall() {
         return 0
     fi
 
+    # --- Detecta porta SSH ---
+    if [[ -z "$SSH_PORT" ]]; then
+        # Tenta detectar porta SSH ativa (sshd escutando)
+        SSH_PORT=$(ss -tlnp 2>/dev/null | grep -oP '(?<=:)\d+(?=\s.*sshd)' | head -1)
+        SSH_PORT="${SSH_PORT:-22}"
+        if [[ "$SSH_PORT" != "22" ]]; then
+            log_info "Porta SSH detectada automaticamente: $SSH_PORT"
+        fi
+    fi
+
     # Instala ufw se necessario
     if ! command -v ufw &>/dev/null; then
         log_info "Instalando ufw..."
@@ -887,11 +906,21 @@ configure_firewall() {
     ufw default deny incoming >> "$LOG_FILE" 2>&1
     ufw default allow outgoing >> "$LOG_FILE" 2>&1
 
-    # SSH — essencial
-    ufw allow 22/tcp comment "SSH" >> "$LOG_FILE" 2>&1
+    # SSH — essencial (porta detectada ou configurada)
+    ufw allow "$SSH_PORT/tcp" comment "SSH" >> "$LOG_FILE" 2>&1
 
-    # Frontend (porta alta — seguro)
-    ufw allow 3000/tcp comment "Escritorio Virtual Frontend" >> "$LOG_FILE" 2>&1
+    # Detecta nginx existente no host
+    detect_nginx_on_host
+
+    if $NGINX_ON_HOST; then
+        # Nginx no host faz proxy reverso — abre 80/443, NAO abre 3000
+        ufw allow 80/tcp comment "HTTP (nginx)" >> "$LOG_FILE" 2>&1
+        ufw allow 443/tcp comment "HTTPS (nginx)" >> "$LOG_FILE" 2>&1
+        log_info "Nginx detectado no host — portas 80/443 abertas, 3000 acessivel somente via proxy"
+    else
+        # Sem nginx no host — abre 3000 direto
+        ufw allow 3000/tcp comment "Escritorio Virtual Frontend" >> "$LOG_FILE" 2>&1
+    fi
 
     # Evolution webhook (recebe msgs do WhatsApp)
     ufw allow 8080/tcp comment "Evolution API WhatsApp" >> "$LOG_FILE" 2>&1
@@ -902,13 +931,22 @@ configure_firewall() {
     # 8000 — Backend (acesso via nginx no container frontend)
     log_info "Portas internas bloqueadas externamente: 5432 (PostgreSQL), 6379 (Redis), 8000 (Backend)"
 
+    # Monta lista de portas para exibicao
+    local portas_permitidas="$SSH_PORT (SSH)"
+    if $NGINX_ON_HOST; then
+        portas_permitidas+=", 80 (HTTP), 443 (HTTPS)"
+    else
+        portas_permitidas+=", 3000 (Frontend)"
+    fi
+    portas_permitidas+=", 8080 (Evolution)"
+
     # Ativa
     if $NON_INTERACTIVE; then
         ufw --force enable >> "$LOG_FILE" 2>&1
     else
         echo ""
         echo -e "  ${BOLD}Regras do firewall:${NC}"
-        echo "    PERMITIDO: 22 (SSH), 3000 (Frontend), 8080 (Evolution)"
+        echo "    PERMITIDO: $portas_permitidas"
         echo "    BLOQUEADO: 5432 (PostgreSQL), 6379 (Redis), 8000 (Backend)"
         echo ""
         if confirm "Ativar firewall com estas regras?" "s"; then
@@ -921,7 +959,107 @@ configure_firewall() {
     fi
 
     salvar_estado "FIREWALL_CONFIGURED" "true"
+    salvar_estado "SSH_PORT" "$SSH_PORT"
     log_success "Firewall configurado e ativo"
+}
+
+# ─── Detecta nginx no host e oferece proxy reverso ───────────────────────────
+detect_nginx_on_host() {
+    # Verifica se nginx roda no host (nao em container Docker)
+    if ! pgrep -x nginx &>/dev/null; then
+        return 0
+    fi
+
+    # Confirma que nao e nginx em Docker
+    if pgrep -x nginx | xargs -I{} cat /proc/{}/cgroup 2>/dev/null | grep -q docker; then
+        return 0
+    fi
+
+    log_info "Nginx detectado rodando no host"
+    NGINX_ON_HOST=true
+
+    # Em modo nao-interativo, sempre configura proxy
+    if $NON_INTERACTIVE; then
+        setup_nginx_proxy
+        return 0
+    fi
+
+    echo ""
+    echo -e "  ${BOLD}Nginx existente detectado no servidor${NC}"
+    echo "  Voce pode usar seu nginx como proxy reverso para o Escritorio Virtual"
+    echo "  em vez de expor a porta 3000 diretamente."
+    echo ""
+
+    if confirm "Configurar proxy reverso no nginx existente?" "s"; then
+        setup_nginx_proxy
+    else
+        NGINX_ON_HOST=false
+        log_info "Proxy reverso nao configurado — porta 3000 sera exposta diretamente"
+    fi
+}
+
+# Cria config nginx para proxy reverso
+setup_nginx_proxy() {
+    local nginx_conf_dir=""
+
+    # Detecta diretorio de configs do nginx
+    if [[ -d /etc/nginx/sites-available ]]; then
+        nginx_conf_dir="/etc/nginx/sites-available"
+    elif [[ -d /etc/nginx/conf.d ]]; then
+        nginx_conf_dir="/etc/nginx/conf.d"
+    else
+        log_warn "Diretorio de configuracao nginx nao encontrado"
+        log_warn "Crie manualmente um proxy reverso para localhost:3000"
+        return 0
+    fi
+
+    local conf_file="$nginx_conf_dir/escritorio-virtual"
+    [[ "$nginx_conf_dir" == *conf.d* ]] && conf_file="${conf_file}.conf"
+
+    # Nao sobrescreve config existente
+    if [[ -f "$conf_file" ]]; then
+        log_success "Config nginx ja existe: $conf_file"
+        return 0
+    fi
+
+    local server_name="_"
+    if ! $NON_INTERACTIVE; then
+        read_value "Dominio para o Escritorio Virtual (ou Enter para qualquer)" server_name "_"
+    fi
+
+    cat > "$conf_file" << NGINXCONF
+# Escritorio Virtual — Proxy reverso
+# Gerado pelo setup.sh em $(date -Iseconds)
+server {
+    listen 80;
+    server_name $server_name;
+
+    # Frontend (Flutter web)
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+NGINXCONF
+
+    # Ativa site (se usa sites-available/sites-enabled)
+    if [[ -d /etc/nginx/sites-enabled && ! -L "/etc/nginx/sites-enabled/escritorio-virtual" ]]; then
+        ln -sf "$conf_file" /etc/nginx/sites-enabled/escritorio-virtual
+    fi
+
+    # Testa e recarrega
+    if nginx -t >> "$LOG_FILE" 2>&1; then
+        systemctl reload nginx >> "$LOG_FILE" 2>&1
+        log_success "Proxy reverso nginx configurado: $conf_file"
+        log_info "Acesso via: http://$server_name/"
+    else
+        log_error "Erro na configuracao nginx. Verifique: nginx -t"
+        rm -f "$conf_file"
+        NGINX_ON_HOST=false
+    fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1165,6 +1303,9 @@ print_summary() {
     if [[ -n "$dominio" ]]; then
         echo "    Frontend:  https://$dominio/"
         echo "    API:       https://$dominio/health"
+    elif $NGINX_ON_HOST; then
+        echo "    Frontend:  http://<ip-do-servidor>/ (via nginx proxy)"
+        echo "    API:       http://<ip-do-servidor>/health"
     else
         echo "    Frontend:  http://<ip-do-servidor>:3000/"
         echo "    API:       http://<ip-do-servidor>:8000/health"
