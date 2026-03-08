@@ -11,11 +11,6 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./docker/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
   backend:
     build: ./backend
     ports:
@@ -23,58 +18,9 @@ services:
     env_file: ./backend/.env
     depends_on:
       - db
-      - redis
     volumes:
       - ./backend:/app
       - ./secrets/google_credentials.json:/run/secrets/google_credentials.json:ro
-
-  worker:
-    build: ./backend
-    command: celery -A app.worker worker --loglevel=info
-    env_file: ./backend/.env
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app
-      - ./secrets/google_credentials.json:/run/secrets/google_credentials.json:ro
-
-  beat:
-    build: ./backend
-    command: celery -A app.worker beat --loglevel=info
-    env_file: ./backend/.env
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app
-
-  evolution:
-    image: atendai/evolution-api:v2.1.1
-    restart: always
-    ports:
-      - "8080:8080"
-    environment:
-      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-muglia-evolution-key}
-      - SERVER_TYPE=http
-      - SERVER_PORT=8080
-      - SERVER_URL=http://evolution:8080
-      - DATABASE_ENABLED=true
-      - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://muglia:muglia@db:5432/evolution?schema=public
-      - DATABASE_SAVE_DATA_INSTANCE=true
-      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
-      - DATABASE_SAVE_DATA_CONTACTS=true
-      - DATABASE_SAVE_DATA_CHATS=true
-      - DATABASE_SAVE_MESSAGE_UPDATE=true
-      - CACHE_REDIS_ENABLED=true
-      - CACHE_REDIS_URI=redis://redis:6379/6
-      - CACHE_REDIS_PREFIX_KEY=evolution
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - evolution_instances:/evolution/instances
 
   frontend:
     build: ./frontend
@@ -83,83 +29,5 @@ services:
     depends_on:
       - backend
 
-  # === Monitoramento ===
-
-  prometheus:
-    image: prom/prometheus:latest
-    restart: always
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
-    depends_on:
-      - backend
-
-  grafana:
-    image: grafana/grafana:latest
-    restart: always
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-muglia}
-      - GF_USERS_ALLOW_SIGN_UP=false
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-
-  alertmanager:
-    image: prom/alertmanager:latest
-    restart: always
-    ports:
-      - "9093:9093"
-    volumes:
-      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-    depends_on:
-      - backend
-
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
-    restart: always
-    environment:
-      DATA_SOURCE_NAME: "postgresql://muglia:muglia@db:5432/muglia?sslmode=disable"
-    depends_on:
-      - db
-
-  redis-exporter:
-    image: oliver006/redis_exporter:latest
-    restart: always
-    environment:
-      REDIS_ADDR: "redis://redis:6379"
-    depends_on:
-      - redis
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    restart: always
-    ports:
-      - "8081:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    privileged: true
-
 volumes:
   pgdata:
-  evolution_instances:
-  prometheus_data:
-  grafana_data:

@@ -1,21 +1,7 @@
-from datetime import datetime
+import re
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-
-
-def _parse_datajud_datetime(raw: str) -> datetime | None:
-    """Converte datas do DataJud que vem em formatos variados."""
-    if not raw:
-        return None
-    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y%m%d%H%M%S", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(raw, fmt)
-        except ValueError:
-            continue
-    try:
-        return datetime.fromisoformat(raw)
-    except (ValueError, TypeError):
-        return None
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -28,71 +14,65 @@ from app.schemas import (
     ProcessoParteCreate,
     ProcessoParteOut,
 )
-from app.services.datajud import parse_cnj, consultar_processo
+
+# Mapeamento de tribunais (J.TT -> alias)
+TRIBUNAL_MAP = {
+    "5.00": "tst", "6.00": "tse", "3.00": "stj", "7.00": "stm",
+    **{f"4.{t:02d}": f"trf{t}" for t in range(1, 7)},
+    **{f"5.{t:02d}": f"trt{t}" for t in range(1, 25)},
+    "8.01": "tjac", "8.02": "tjal", "8.03": "tjap", "8.04": "tjam",
+    "8.05": "tjba", "8.06": "tjce", "8.07": "tjdft", "8.08": "tjes",
+    "8.09": "tjgo", "8.10": "tjma", "8.11": "tjmt", "8.12": "tjms",
+    "8.13": "tjmg", "8.14": "tjpa", "8.15": "tjpb", "8.16": "tjpr",
+    "8.17": "tjpe", "8.18": "tjpi", "8.19": "tjrj", "8.20": "tjrn",
+    "8.21": "tjrs", "8.22": "tjro", "8.23": "tjrr", "8.24": "tjsc",
+    "8.25": "tjse", "8.26": "tjsp", "8.27": "tjto",
+    "6.01": "tre-ac", "6.02": "tre-al", "6.03": "tre-ap", "6.04": "tre-am",
+    "6.05": "tre-ba", "6.06": "tre-ce", "6.07": "tre-dft", "6.08": "tre-es",
+    "6.09": "tre-go", "6.10": "tre-ma", "6.11": "tre-mt", "6.12": "tre-ms",
+    "6.13": "tre-mg", "6.14": "tre-pa", "6.15": "tre-pb", "6.16": "tre-pr",
+    "6.17": "tre-pe", "6.18": "tre-pi", "6.19": "tre-rj", "6.20": "tre-rn",
+    "6.21": "tre-rs", "6.22": "tre-ro", "6.23": "tre-rr", "6.24": "tre-sc",
+    "6.25": "tre-se", "6.26": "tre-sp", "6.27": "tre-to",
+    "9.13": "tjmmg", "9.21": "tjmrs", "9.26": "tjmsp",
+}
+
+CNJ_REGEX = re.compile(r"^(\d{7})-(\d{2})\.(\d{4})\.(\d)\.(\d{2})\.(\d{4})$")
+
+
+def parse_cnj(cnj: str) -> dict | None:
+    match = CNJ_REGEX.match(cnj.strip())
+    if not match:
+        return None
+    j, tt = match.group(4), match.group(5)
+    return {
+        "cnj": cnj.strip(),
+        "numero_limpo": cnj.replace("-", "").replace(".", ""),
+        "codigo_tribunal": f"{j}.{tt}",
+        "alias_tribunal": TRIBUNAL_MAP.get(f"{j}.{tt}"),
+    }
+
 
 router = APIRouter(prefix="/processos", tags=["processos"])
 
 
 @router.post("/", response_model=ProcessoOut, status_code=201)
 def cadastrar_processo(payload: ProcessoCreate, db: Session = Depends(get_db)):
-    # 1) Validar CNJ
     parsed = parse_cnj(payload.cnj)
     if parsed is None:
         raise HTTPException(status_code=400, detail="CNJ invalido")
 
-    # 2) Checar duplicidade
     existe = db.query(Processo).filter(Processo.cnj == parsed["cnj"]).first()
     if existe:
         raise HTTPException(status_code=409, detail="Processo ja cadastrado")
 
-    # 3) Consultar DataJud
-    dados = consultar_processo(parsed["numero_limpo"], parsed["alias_tribunal"])
-
-    # 4) Criar processo
     processo = Processo(
         cnj=parsed["cnj"],
         numero_limpo=parsed["numero_limpo"],
         tribunal=parsed["codigo_tribunal"],
         alias_tribunal=parsed["alias_tribunal"],
-        classe_codigo=dados.get("classe", {}).get("codigo") if dados else None,
-        classe_nome=dados.get("classe", {}).get("nome") if dados else None,
-        orgao_julgador=dados.get("orgaoJulgador", {}).get("nome") if dados else None,
-        grau=dados.get("grau") if dados else None,
-        data_ajuizamento=(
-            _parse_datajud_datetime(dados.get("dataAjuizamento", ""))
-            if dados else None
-        ),
-        ultima_verificacao=datetime.utcnow(),
     )
     db.add(processo)
-    db.flush()
-
-    # 5) Salvar movimentos
-    for mov in (dados.get("movimentos") or []) if dados else []:
-        data_hora_raw = mov.get("dataHora", "")
-        data_hora = _parse_datajud_datetime(data_hora_raw) if data_hora_raw else None
-        if data_hora is None:
-            data_hora = datetime.utcnow()
-
-        complementos_list = mov.get("complementosTabelados") or []
-        complementos_str = (
-            "; ".join(
-                f"{c.get('nome', '')}: {c.get('valor', '')}"
-                for c in complementos_list
-            )
-            if complementos_list
-            else None
-        )
-
-        movimento = Movimento(
-            processo_id=processo.id,
-            codigo=mov.get("codigo", 0),
-            nome=mov.get("nome", ""),
-            data_hora=data_hora,
-            complementos=complementos_str,
-        )
-        db.add(movimento)
-
     db.commit()
     db.refresh(processo)
     return processo

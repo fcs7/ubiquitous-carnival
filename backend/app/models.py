@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, date
 from sqlalchemy import (
-    String, Integer, Float, Boolean, DateTime, Date,
+    String, Integer, Boolean, DateTime, Date,
     ForeignKey, Text, UniqueConstraint, Numeric,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -19,8 +19,8 @@ class Usuario(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True)
     oab: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     conversas: Mapped[list["Conversa"]] = relationship(back_populates="usuario")
     agentes_config: Mapped[list["AgenteConfig"]] = relationship(back_populates="usuario")
@@ -50,8 +50,8 @@ class Cliente(Base):
     cep: Mapped[str | None] = mapped_column(String(10), nullable=True)
     observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
     outros_dados: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     processo_partes: Mapped[list["ProcessoParte"]] = relationship(back_populates="cliente")
     financeiro: Mapped[list["Financeiro"]] = relationship(back_populates="cliente")
@@ -76,8 +76,8 @@ class Processo(Base):
     data_ajuizamento: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="ativo", index=True)
     ultima_verificacao: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     partes: Mapped[list["ProcessoParte"]] = relationship(back_populates="processo", cascade="all, delete-orphan")
     movimentos: Mapped[list["Movimento"]] = relationship(back_populates="processo", cascade="all, delete-orphan")
@@ -124,7 +124,7 @@ class Movimento(Base):
     complementos: Mapped[str | None] = mapped_column(Text, nullable=True)
     resumo_ia: Mapped[str | None] = mapped_column(Text, nullable=True)
     notificado: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     processo: Mapped["Processo"] = relationship(back_populates="movimentos")
 
@@ -141,8 +141,8 @@ class Prazo(Base):
     descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     data_limite: Mapped[date] = mapped_column(Date, index=True)
     status: Mapped[str] = mapped_column(String(20), default="pendente", index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     processo: Mapped["Processo"] = relationship(back_populates="prazos")
 
@@ -162,8 +162,8 @@ class Financeiro(Base):
     status: Mapped[str] = mapped_column(String(20), default="pendente", index=True)
     data_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     data_pagamento: Mapped[date | None] = mapped_column(Date, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     processo: Mapped["Processo"] = relationship(back_populates="financeiro")
     cliente: Mapped["Cliente"] = relationship(back_populates="financeiro")
@@ -210,8 +210,8 @@ class Conversa(Base):
     modelo_claude: Mapped[str] = mapped_column(String(50), default="claude-haiku-4-5-20251001")
     agente_id: Mapped[int | None] = mapped_column(ForeignKey("agentes_config.id"), nullable=True, index=True)
     config_extra: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON com configs especificas
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     usuario: Mapped["Usuario"] = relationship(back_populates="conversas")
     processo: Mapped["Processo | None"] = relationship(back_populates="conversas")
@@ -228,7 +228,7 @@ class Mensagem(Base):
     conteudo: Mapped[str] = mapped_column(Text)
     tokens_input: Mapped[int | None] = mapped_column(Integer, nullable=True)
     tokens_output: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     conversa: Mapped["Conversa"] = relationship(back_populates="mensagens")
 
@@ -243,7 +243,7 @@ class ConfigEscritorio(Base):
     chave: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     valor: Mapped[str] = mapped_column(Text)
     descricao: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
 
 # ──────────────────────────────────────────────
@@ -322,34 +322,6 @@ class VindiBill(Base):
     vindi_customer: Mapped["VindiCustomer | None"] = relationship(back_populates="bills")
     vindi_subscription: Mapped["VindiSubscription | None"] = relationship(back_populates="bills")
     financeiro: Mapped["Financeiro | None"] = relationship(back_populates="vindi_bill")
-
-
-# ──────────────────────────────────────────────
-# Tags polimoricas
-# ──────────────────────────────────────────────
-class Tag(Base):
-    __tablename__ = "tags"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    nome: Mapped[str] = mapped_column(String(100), unique=True)
-    cor: Mapped[str | None] = mapped_column(String(7), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
-
-    entidades: Mapped[list["TagEntidade"]] = relationship(back_populates="tag", cascade="all, delete-orphan")
-
-
-class TagEntidade(Base):
-    __tablename__ = "tag_entidades"
-    __table_args__ = (
-        UniqueConstraint("tag_id", "entidade_tipo", "entidade_id", name="uq_tag_entidade"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    tag_id: Mapped[int] = mapped_column(ForeignKey("tags.id", ondelete="CASCADE"), index=True)
-    entidade_tipo: Mapped[str] = mapped_column(String(30))
-    entidade_id: Mapped[int] = mapped_column(Integer)
-
-    tag: Mapped["Tag"] = relationship(back_populates="entidades")
 
 
 # ──────────────────────────────────────────────

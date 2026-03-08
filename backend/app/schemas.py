@@ -316,36 +316,6 @@ class VindiCustomerDetailOut(VindiCustomerOut):
     bills: list[VindiBillOut] = []
 
 
-# -- Tags --
-class TagCreate(BaseModel):
-    nome: str
-    cor: str | None = None
-
-
-class TagOut(BaseModel):
-    id: int
-    nome: str
-    cor: str | None
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class TagEntidadeCreate(BaseModel):
-    tag_id: int
-    entidade_tipo: str
-    entidade_id: int
-
-
-class TagEntidadeOut(BaseModel):
-    id: int
-    tag_id: int
-    entidade_tipo: str
-    entidade_id: int
-
-    model_config = {"from_attributes": True}
-
-
 # -- Agentes --
 class AgenteConfigCreate(BaseModel):
     nome: str

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Muglia is an internal legal management system for a Brazilian law firm. It monitors ~1000 judicial processes via the DataJud CNJ API, translates legal updates with AI, notifies clients via WhatsApp, and provides an AI-powered legal chat (Claude API) for document generation.
+Muglia is an internal legal management system for a Brazilian law firm focused on **AI-powered legal assistants**. It manages clients, judicial processes, financial records (Vindi integration), documents (Google Drive), and provides configurable AI agents (Claude/OpenAI) for legal document generation and consultations.
 
 ## Commands
 
@@ -23,8 +23,8 @@ cd backend && .venv/bin/python -m pytest tests/ -v
 # Install dependencies
 cd backend && python -m venv .venv && .venv/bin/pip install -r requirements.txt
 
-# Run dev server (requires PostgreSQL and Redis via Docker)
-docker compose up db redis -d
+# Run dev server (requires PostgreSQL via Docker)
+docker compose up db -d
 .venv/bin/uvicorn app.main:app --reload
 
 # Run everything
@@ -43,42 +43,42 @@ flutter run              # mobile
 
 **Backend** (`backend/app/`):
 - `main.py` — FastAPI app, registers all routers, creates tables on startup
-- `models.py` — 11 SQLAlchemy models. Key relationship: `ProcessoParte` is a N:N junction table between `Processo` and `Cliente` with a `papel` field (autor/reu/advogado)
+- `models.py` — SQLAlchemy models (Usuario, Cliente, Processo, ProcessoParte, Movimento, Prazo, Financeiro, Documento, Conversa, Mensagem, ConfigEscritorio, Vindi*, AgenteConfig, ToolExecution)
 - `database.py` — engine, session factory, `get_db` dependency
 - `config.py` — pydantic-settings `Settings` class, reads from `.env`
 
 **Services** (`backend/app/services/`):
-- `datajud.py` — `TRIBUNAL_MAP` (90+ tribunals), `parse_cnj()` extracts tribunal from CNJ number, `consultar_processo()` queries DataJud Elasticsearch API
 - `claude_chat.py` — orchestrates Claude API calls with layered system prompts (legal context + office config + process data + conversation history)
-- `monitor.py` — Celery task `monitorar_todos` polls DataJud daily at 7am, detects new movements by comparing `(codigo, data_hora)` tuples
-- `ia.py` — OpenAI gpt-4o-mini for translating legal jargon to plain Portuguese
-- `whatsapp.py` — Evolution API integration for client notifications
+- `agente_chat.py` — configurable AI agent with tool-calling loop, memory, and streaming
+- `assistente.py` — unified assistant endpoint (auto-creates agent + conversation)
+- `vindi.py` — Vindi webhook handlers for syncing customers, subscriptions, bills -> Financeiro
+- `google_drive.py` — Google Drive integration for document management
+- `ferramentas/` — AI agent tools: buscar_processo, listar_movimentos, buscar_cliente, calcular_prazo, listar_prazos, resumo_financeiro, listar_documentos_processo
 
-**Routers** (`backend/app/routers/`): clientes, processos, financeiro, prazos, chat
+**Routers** (`backend/app/routers/`): agentes, assistente, chat, clientes, documentos, financeiro, prazos, processos, vindi, vindi_webhook
 
 **Tests** (`backend/tests/`):
 - `conftest.py` provides shared SQLite in-memory engine with `client` and `db` fixtures
 - API tests use `client` fixture (TestClient), service tests create their own sessions
-- DataJud and Claude API calls are always mocked in tests
+- Claude API calls are always mocked in tests
 
 ## Key Patterns
 
 - CNJ format: `NNNNNNN-DD.AAAA.J.TT.OOOO` where `J.TT` identifies the tribunal
+- `parse_cnj()` and `TRIBUNAL_MAP` are in `routers/processos.py` (90+ tribunals)
 - `Movimento` has `UniqueConstraint("processo_id", "codigo", "data_hora")` to prevent duplicates
 - `Financeiro` links to both `processo_id` AND `cliente_id` (who pays)
-- `Movimento.data_hora` is `DateTime` (not string) — convert ISO strings from DataJud on insert
+- Vindi webhook auto-creates `Financeiro` when customer+subscription are linked
 - Backend uses venv at `backend/.venv` (Arch Linux requires this)
 - Always run git commands from project root `/home/fcs/Documents/Muglia/`, not from `backend/`
 - All test files must use shared `conftest.py` fixtures (`client`, `db`) — never create per-file engines
-- `datetime.utcnow()` is deprecated in Python 3.14 — use `datetime.now(datetime.UTC)` in new code
+- `datetime.utcnow()` is deprecated in Python 3.14 — use `datetime.now(UTC)` in new code
 - Flutter is NOT installed yet — install before frontend tasks: `sudo snap install flutter --classic`
 - Custom dev agents available in `.claude/agents/` (backend, frontend, juridico, devops, testes)
 
-## DataJud API
+## Removed Features
 
-- Public key (changes periodically): stored in `config.py` default
-- Endpoint: `POST https://api-publica.datajud.cnj.jus.br/api_publica_{tribunal}/_search`
-- Body is Elasticsearch query DSL: `{"query": {"match": {"numeroProcesso": "CNJ_SEM_FORMATACAO"}}}`
+DataJud monitoring, Celery/Redis workers, WhatsApp/Evolution notifications, Prometheus/Grafana metrics, and Tags were removed. Process data is now managed manually + via Vindi sync.
 
 ## Language
 
