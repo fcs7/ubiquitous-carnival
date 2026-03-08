@@ -1,6 +1,17 @@
-# Muglia — Sistema Juridico
+# Escritorio Virtual — Plataforma Juridica Inteligente
 
-Sistema interno do escritorio Muglia para gestao de processos judiciais, clientes, financeiro e comunicacao.
+Sistema interno para gestao de processos judiciais, clientes, financeiro e comunicacao.
+
+## Instalar em producao (1 comando)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fcs7/ubiquitous-carnival/master/deploy.sh | sudo bash
+```
+
+Instala tudo automaticamente em Ubuntu/Debian: Docker, banco, containers, firewall e systemd.
+Re-execute para atualizar — nunca sobrescreve suas configuracoes.
+
+> Detalhes e opcoes avancadas: [docs/DEPLOY.md](docs/DEPLOY.md)
 
 ## O que faz
 
