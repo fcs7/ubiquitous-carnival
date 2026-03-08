@@ -1,0 +1,38 @@
+# Escritorio Virtual - Configuracao de Deploy (modo nao-interativo)
+# Copie para setup.conf e preencha os campos obrigatorios.
+#
+# Uso: bash scripts/setup.sh --non-interactive --config setup.conf
+
+# Diretorio de instalacao
+INSTALL_DIR=/opt/escritorio-virtual
+REPO_BRANCH=master
+
+# Banco de dados (auto-gerados se vazio)
+POSTGRES_USER=muglia
+POSTGRES_PASSWORD=
+POSTGRES_DB=muglia
+
+# IA — OBRIGATORIAS
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+
+# DataJud (tem valor default — so preencha se quiser sobrescrever)
+DATAJUD_API_KEY=
+
+# WhatsApp — Evolution API (gerada automaticamente se vazio)
+EVOLUTION_API_KEY=
+
+# Vindi — opcional (deixe vazio para pular)
+VINDI_API_KEY=
+VINDI_WEBHOOK_SECRET=
+
+# Google Drive — opcional
+GOOGLE_DRIVE_ROOT_FOLDER_ID=
+GOOGLE_CREDENTIALS_FILE=
+
+# Opcoes de deploy
+SKIP_FIREWALL=false
+SKIP_SSL=true
+SKIP_SYSTEMD=false
+SSL_DOMAIN=
+SSL_EMAIL=
