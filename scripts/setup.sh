@@ -9,7 +9,7 @@
 #         --skip-firewall, --skip-ssl, --skip-systemd
 #         --force-reconfigure
 # =============================================================================
-set -euo pipefail
+set -eo pipefail
 
 # ─── Constantes ──────────────────────────────────────────────────────────────
 readonly SCRIPT_VERSION="1.0.0"
@@ -452,6 +452,20 @@ clone_or_update_repo() {
         apt-get install -y -qq git >/dev/null 2>&1
     fi
 
+    # Detecta se este script ja esta rodando de dentro do repo
+    local script_repo_dir=""
+    script_repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [[ -d "$script_repo_dir/.git" && -f "$script_repo_dir/docker-compose.yml" ]]; then
+        # O script esta rodando de dentro do repo — usa esse diretorio
+        if [[ "$script_repo_dir" != "$INSTALL_DIR" ]]; then
+            log_info "Repositorio detectado em $script_repo_dir"
+            INSTALL_DIR="$script_repo_dir"
+            STATE_FILE="$INSTALL_DIR/.ev-state"
+            ENV_FILE="$INSTALL_DIR/backend/.env"
+            SECRETS_DIR="$INSTALL_DIR/secrets"
+        fi
+    fi
+
     if [[ -d "$INSTALL_DIR/.git" ]]; then
         log_info "Repositorio existente detectado, atualizando..."
         cd "$INSTALL_DIR"
@@ -468,7 +482,7 @@ clone_or_update_repo() {
         log_success "Repositorio atualizado (branch: $REPO_BRANCH)"
     else
         log_info "Clonando repositorio..."
-        mkdir -p "$(dirname "$INSTALL_DIR")"
+        mkdir -p "$INSTALL_DIR"
         git clone --branch "$REPO_BRANCH" "$REPO_GIT" "$INSTALL_DIR" >> "$LOG_FILE" 2>&1
         log_success "Repositorio clonado em $INSTALL_DIR"
     fi
