@@ -5,3 +5,5 @@ __pycache__/
 .venv/
 secrets/
 backend/data/agentes/*/
+backend/celerybeat-schedule
+.playwright-mcp/
