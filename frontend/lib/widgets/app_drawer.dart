@@ -47,32 +47,38 @@ class AppDrawer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Escritorio',
-                  style: GoogleFonts.cormorant(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: MugliaTheme.textPrimary,
-                    height: 1.1,
-                  ),
-                ),
-                Text(
-                  'Virtual',
-                  style: GoogleFonts.cormorant(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: MugliaTheme.primary,
-                    height: 1.1,
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'Escritorio ',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: MugliaTheme.textPrimary,
+                          height: 1.3,
+                        ),
+                      ),
+                      TextSpan(
+                        text: 'Virtual',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: MugliaTheme.primary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Plataforma Juridica',
+                  'PLATAFORMA JURIDICA',
                   style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                     color: MugliaTheme.textMuted,
-                    letterSpacing: 1.5,
+                    letterSpacing: 2.5,
                   ),
                 ),
               ],
@@ -99,12 +105,6 @@ class AppDrawer extends StatelessWidget {
             label: 'Processos',
             path: '/processos',
             isSelected: currentPath.startsWith('/processos'),
-          ),
-          _DrawerItem(
-            icon: Icons.attach_money_rounded,
-            label: 'Financeiro',
-            path: '/financeiro',
-            isSelected: currentPath.startsWith('/financeiro'),
           ),
           _DrawerItem(
             icon: Icons.schedule_rounded,

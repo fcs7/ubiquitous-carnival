@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import json
 
-from app.models import Financeiro, VindiBill, VindiCustomer, VindiSubscription
+from app.models import VindiBill, VindiCustomer, VindiSubscription
 
 
 def _sign(body: bytes, secret: str) -> str:
@@ -86,7 +86,7 @@ def test_bill_created_sem_vinculo(client, db, monkeypatch):
     vb = db.query(VindiBill).filter_by(vindi_id=100).first()
     assert vb is not None
     assert float(vb.valor) == 500.00
-    assert vb.financeiro_id is None  # sem vinculo, nao cria Financeiro
+    assert vb.status == "pending"
 
 
 # ── Bill created com vinculo completo ───────────
@@ -95,7 +95,6 @@ def test_bill_created_com_vinculo_completo(client, db, monkeypatch):
     monkeypatch.setattr("app.config.settings.vindi_webhook_secret", "")
     from app.models import Cliente, Processo
 
-    # Setup: cliente + processo
     cliente = Cliente(nome="Pedro", cpf_cnpj="111", telefone="11999")
     db.add(cliente)
     db.flush()
@@ -105,7 +104,6 @@ def test_bill_created_com_vinculo_completo(client, db, monkeypatch):
     db.add(processo)
     db.flush()
 
-    # Customer vinculado
     from app.models import VindiCustomer as VC, VindiSubscription as VS
     vc = VC(vindi_id=20, nome="Pedro", cliente_id=cliente.id, status_sync="vinculado")
     db.add(vc)
@@ -130,16 +128,11 @@ def test_bill_created_com_vinculo_completo(client, db, monkeypatch):
 
     vb = db.query(VindiBill).filter_by(vindi_id=300).first()
     assert vb is not None
-    assert vb.financeiro_id is not None
-
-    fin = db.get(Financeiro, vb.financeiro_id)
-    assert fin.cliente_id == cliente.id
-    assert fin.processo_id == processo.id
-    assert fin.status == "pendente"
-    assert float(fin.valor) == 1500.00
+    assert float(vb.valor) == 1500.00
+    assert vb.status == "pending"
 
 
-# ── Bill paid atualiza Financeiro ───────────────
+# ── Bill paid ─────────────────────────────────
 
 def test_bill_paid(client, db, monkeypatch):
     monkeypatch.setattr("app.config.settings.vindi_webhook_secret", "")
@@ -174,7 +167,4 @@ def test_bill_paid(client, db, monkeypatch):
 
     vb = db.query(VindiBill).filter_by(vindi_id=400).first()
     assert vb.status == "paid"
-
-    fin = db.get(Financeiro, vb.financeiro_id)
-    assert fin.status == "pago"
-    assert fin.data_pagamento is not None
+    assert vb.data_pagamento is not None

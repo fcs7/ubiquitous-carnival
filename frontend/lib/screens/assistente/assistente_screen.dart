@@ -426,7 +426,7 @@ class _AssistenteScreenState extends State<AssistenteScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Seu assistente juridico com acesso a\nprocessos, prazos e financeiro',
+              'Seu assistente juridico com acesso a\nprocessos, prazos e documentos',
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -435,8 +435,8 @@ class _AssistenteScreenState extends State<AssistenteScreen>
               alignment: WrapAlignment.center,
               children: [
                 _buildSugestao('Prazos da semana?', Icons.schedule_rounded),
-                _buildSugestao('Resumo financeiro', Icons.attach_money_rounded),
                 _buildSugestao('Buscar processo', Icons.search_rounded),
+                _buildSugestao('Listar documentos', Icons.folder_rounded),
               ],
             ),
           ],

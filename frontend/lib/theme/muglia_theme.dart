@@ -55,24 +55,24 @@ class MugliaTheme {
       ),
       textTheme: baseText.copyWith(
         // Serif elegante para titulos — autoridade juridica
-        displayLarge: GoogleFonts.cormorant(
+        displayLarge: GoogleFonts.playfairDisplay(
           fontSize: 34,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -0.5,
         ),
-        displayMedium: GoogleFonts.cormorant(
+        displayMedium: GoogleFonts.playfairDisplay(
           fontSize: 28,
           fontWeight: FontWeight.w700,
           color: textPrimary,
           letterSpacing: -0.3,
         ),
-        headlineLarge: GoogleFonts.cormorant(
+        headlineLarge: GoogleFonts.playfairDisplay(
           fontSize: 26,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        headlineMedium: GoogleFonts.cormorant(
+        headlineMedium: GoogleFonts.playfairDisplay(
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: textPrimary,
@@ -217,7 +217,7 @@ class MugliaTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        titleTextStyle: GoogleFonts.cormorant(
+        titleTextStyle: GoogleFonts.playfairDisplay(
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: textPrimary,

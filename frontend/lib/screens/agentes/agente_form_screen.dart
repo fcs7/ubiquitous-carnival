@@ -664,8 +664,6 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
         return 'CLIENTES';
       case 'prazo':
         return 'PRAZOS';
-      case 'financeiro':
-        return 'FINANCEIRO';
       default:
         return cat.toUpperCase();
     }
@@ -679,8 +677,6 @@ class _AgenteFormScreenState extends State<AgenteFormScreen> {
         return Icons.people_rounded;
       case 'prazo':
         return Icons.schedule_rounded;
-      case 'financeiro':
-        return Icons.attach_money_rounded;
       default:
         return Icons.extension_rounded;
     }

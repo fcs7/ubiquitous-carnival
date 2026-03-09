@@ -4,7 +4,6 @@ import 'package:muglia/screens/clientes/clientes_screen.dart';
 import 'package:muglia/screens/clientes/cliente_form_screen.dart';
 import 'package:muglia/screens/processos/processos_screen.dart';
 import 'package:muglia/screens/processos/processo_detalhe_screen.dart';
-import 'package:muglia/screens/financeiro/financeiro_screen.dart';
 import 'package:muglia/screens/prazos/prazos_screen.dart';
 import 'package:muglia/screens/assistente/assistente_screen.dart';
 import 'package:muglia/screens/chat/chat_screen.dart';
@@ -44,10 +43,6 @@ final router = GoRouter(
       builder: (context, state) => ProcessoDetalheScreen(
         processoId: int.parse(state.pathParameters['id']!),
       ),
-    ),
-    GoRoute(
-      path: '/financeiro',
-      builder: (context, state) => const FinanceiroScreen(),
     ),
     GoRoute(
       path: '/prazos',

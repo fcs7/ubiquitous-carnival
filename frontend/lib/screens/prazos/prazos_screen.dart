@@ -443,7 +443,7 @@ class _PrazosScreenState extends State<PrazosScreen>
               const SizedBox(width: 10),
               Text(
                 titulo,
-                style: GoogleFonts.cormorant(
+                style: GoogleFonts.playfairDisplay(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: corGrupo,

@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models import (
     Usuario, Cliente, Processo, ProcessoParte,
-    Movimento, Prazo, Financeiro, Documento,
+    Movimento, Prazo, Documento,
     Conversa, Mensagem, ConfigEscritorio,
 )
 
@@ -86,37 +86,6 @@ def test_movimento_com_datetime():
 
     assert isinstance(mov.data_hora, datetime)
     assert processo.movimentos[0].nome == "Distribuicao"
-    session.rollback()
-
-
-def test_financeiro_vincula_processo_e_cliente():
-    session = Session()
-    cliente = Cliente(nome="Joao", cpf_cnpj="333.333.333-33", telefone="61999993333", estado_civil="divorciado")
-    session.add(cliente)
-    session.flush()
-
-    processo = Processo(
-        cnj="0000001-00.2024.8.07.0001",
-        numero_limpo="00000010020248070001",
-        tribunal="TJDFT",
-        alias_tribunal="tjdft",
-    )
-    session.add(processo)
-    session.flush()
-
-    fin = Financeiro(
-        processo_id=processo.id,
-        cliente_id=cliente.id,
-        tipo="honorario",
-        valor=5000.00,
-        data_vencimento=date(2026, 4, 1),
-    )
-    session.add(fin)
-    session.flush()
-
-    assert fin.processo_id == processo.id
-    assert fin.cliente_id == cliente.id
-    assert fin.status == "pendente"
     session.rollback()
 
 

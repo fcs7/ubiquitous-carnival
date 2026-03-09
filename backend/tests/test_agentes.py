@@ -66,13 +66,13 @@ def test_atualizar_agente(client, db):
 
     resp = client.put(f"/agentes/{aid}?usuario_id={usuario.id}", json={
         "nome": "V2",
-        "ferramentas_habilitadas": ["buscar_processo", "resumo_financeiro"],
-        "instrucoes_sistema": "Foco em financeiro",
+        "ferramentas_habilitadas": ["buscar_processo", "listar_prazos"],
+        "instrucoes_sistema": "Foco em prazos",
     })
     assert resp.status_code == 200
     data = resp.json()
     assert data["nome"] == "V2"
-    assert "resumo_financeiro" in data["ferramentas_habilitadas"]
+    assert "listar_prazos" in data["ferramentas_habilitadas"]
 
 
 def test_deletar_agente(client, db):

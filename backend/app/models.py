@@ -54,7 +54,6 @@ class Cliente(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     processo_partes: Mapped[list["ProcessoParte"]] = relationship(back_populates="cliente")
-    financeiro: Mapped[list["Financeiro"]] = relationship(back_populates="cliente")
     vindi_customers: Mapped[list["VindiCustomer"]] = relationship(back_populates="cliente")
 
 
@@ -82,7 +81,6 @@ class Processo(Base):
     partes: Mapped[list["ProcessoParte"]] = relationship(back_populates="processo", cascade="all, delete-orphan")
     movimentos: Mapped[list["Movimento"]] = relationship(back_populates="processo", cascade="all, delete-orphan")
     prazos: Mapped[list["Prazo"]] = relationship(back_populates="processo", cascade="all, delete-orphan")
-    financeiro: Mapped[list["Financeiro"]] = relationship(back_populates="processo", cascade="all, delete-orphan")
     documentos: Mapped[list["Documento"]] = relationship(back_populates="processo")
     conversas: Mapped[list["Conversa"]] = relationship(back_populates="processo")
     vindi_subscriptions: Mapped[list["VindiSubscription"]] = relationship(back_populates="processo")
@@ -146,28 +144,6 @@ class Prazo(Base):
 
     processo: Mapped["Processo"] = relationship(back_populates="prazos")
 
-
-# ──────────────────────────────────────────────
-# Financeiro (vinculado a processo E cliente)
-# ──────────────────────────────────────────────
-class Financeiro(Base):
-    __tablename__ = "financeiro"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    processo_id: Mapped[int] = mapped_column(ForeignKey("processos.id", ondelete="CASCADE"), index=True)
-    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), index=True)
-    tipo: Mapped[str] = mapped_column(String(50))  # honorario, custas, pericia, acordo
-    descricao: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    valor: Mapped[float] = mapped_column(Numeric(12, 2))
-    status: Mapped[str] = mapped_column(String(20), default="pendente", index=True)
-    data_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
-    data_pagamento: Mapped[date | None] = mapped_column(Date, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
-
-    processo: Mapped["Processo"] = relationship(back_populates="financeiro")
-    cliente: Mapped["Cliente"] = relationship(back_populates="financeiro")
-    vindi_bill: Mapped["VindiBill | None"] = relationship(back_populates="financeiro", uselist=False)
 
 
 # ──────────────────────────────────────────────
@@ -314,14 +290,12 @@ class VindiBill(Base):
     status: Mapped[str] = mapped_column(String(30), default="pending")
     data_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True)
     data_pagamento: Mapped[date | None] = mapped_column(Date, nullable=True)
-    financeiro_id: Mapped[int | None] = mapped_column(ForeignKey("financeiro.id"), nullable=True, index=True)
     dados_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
     vindi_customer: Mapped["VindiCustomer | None"] = relationship(back_populates="bills")
     vindi_subscription: Mapped["VindiSubscription | None"] = relationship(back_populates="bills")
-    financeiro: Mapped["Financeiro | None"] = relationship(back_populates="vindi_bill")
 
 
 # ──────────────────────────────────────────────

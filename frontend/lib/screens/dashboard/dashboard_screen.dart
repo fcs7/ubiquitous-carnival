@@ -185,16 +185,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${_saudacao()}, Advogado',
-          style: Theme.of(context).textTheme.displayMedium,
+          _saudacao(),
+          style: GoogleFonts.dmSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: MugliaTheme.primary,
+            letterSpacing: 1.2,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
+          'Escritorio Virtual',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 30,
+            fontWeight: FontWeight.w700,
+            color: MugliaTheme.textPrimary,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
           dataFormatada,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: MugliaTheme.textMuted,
-                fontSize: 15,
-              ),
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+            color: MugliaTheme.textMuted,
+          ),
         ),
       ],
     );
@@ -360,13 +376,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   IconData _iconeServico(String nome) {
     final nomeLower = nome.toLowerCase();
     if (nomeLower.contains('postgres')) return Icons.storage_rounded;
-    if (nomeLower.contains('redis')) return Icons.memory_rounded;
-    if (nomeLower.contains('celery') || nomeLower.contains('worker')) {
-      return Icons.work_rounded;
+    if (nomeLower.contains('anthropic') || nomeLower.contains('claude')) {
+      return Icons.auto_awesome_rounded;
     }
-    if (nomeLower.contains('evolution') || nomeLower.contains('whatsapp')) {
-      return Icons.chat_rounded;
+    if (nomeLower.contains('openai') || nomeLower.contains('gpt')) {
+      return Icons.psychology_rounded;
     }
+    if (nomeLower.contains('drive') || nomeLower.contains('google')) {
+      return Icons.cloud_rounded;
+    }
+    if (nomeLower.contains('vindi')) return Icons.payments_rounded;
+    if (nomeLower.contains('agente')) return Icons.smart_toy_rounded;
     return Icons.dns_rounded;
   }
 
@@ -586,7 +606,7 @@ class _KpiCardState extends State<_KpiCard> {
             const SizedBox(height: 8),
             Text(
               widget.data.valor,
-              style: GoogleFonts.cormorant(
+              style: GoogleFonts.playfairDisplay(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: MugliaTheme.textPrimary,

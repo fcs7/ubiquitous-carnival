@@ -127,39 +127,6 @@ class ProcessoDetailOut(ProcessoOut):
     movimentos: list[MovimentoOut] = []
 
 
-# -- Financeiro --
-class FinanceiroCreate(BaseModel):
-    processo_id: int
-    cliente_id: int
-    tipo: str
-    descricao: str | None = None
-    valor: float
-    status: str = "pendente"
-    data_vencimento: date | None = None
-
-
-class FinanceiroOut(BaseModel):
-    id: int
-    processo_id: int
-    cliente_id: int
-    tipo: str
-    descricao: str | None
-    valor: float
-    status: str
-    data_vencimento: date | None
-    data_pagamento: date | None
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class FinanceiroResumo(BaseModel):
-    pendente: float
-    pago: float
-    total: float
-
-
 # -- Prazos --
 class PrazoCreate(BaseModel):
     processo_id: int
@@ -296,7 +263,6 @@ class VindiBillOut(BaseModel):
     status: str
     data_vencimento: date | None
     data_pagamento: date | None
-    financeiro_id: int | None
     created_at: datetime
     updated_at: datetime
 

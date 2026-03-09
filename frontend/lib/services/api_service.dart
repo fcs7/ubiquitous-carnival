@@ -72,31 +72,6 @@ class ApiService {
     return _handleList(resp);
   }
 
-  // ── Financeiro ────────────────────────────
-  Future<List<dynamic>> getFinanceiro() async {
-    final resp = await _client.get(Uri.parse('$baseUrl/financeiro/'));
-    return _handleList(resp);
-  }
-
-  Future<Map<String, dynamic>> criarFinanceiro(Map<String, dynamic> data) async {
-    final resp = await _client.post(
-      Uri.parse('$baseUrl/financeiro/'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(data),
-    );
-    return _handleMap(resp);
-  }
-
-  Future<Map<String, dynamic>> marcarPago(int id) async {
-    final resp = await _client.patch(Uri.parse('$baseUrl/financeiro/$id/pagar'));
-    return _handleMap(resp);
-  }
-
-  Future<Map<String, dynamic>> getResumoFinanceiro() async {
-    final resp = await _client.get(Uri.parse('$baseUrl/financeiro/resumo'));
-    return _handleMap(resp);
-  }
-
   // ── Prazos ────────────────────────────────
   Future<List<dynamic>> getPrazos() async {
     final resp = await _client.get(Uri.parse('$baseUrl/prazos/'));

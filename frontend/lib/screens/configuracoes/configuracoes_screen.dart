@@ -99,7 +99,7 @@ class _ConfiguracoesScreenState extends State<ConfiguracoesScreen> {
           const SizedBox(width: 12),
           Text(
             titulo,
-            style: GoogleFonts.cormorant(
+            style: GoogleFonts.playfairDisplay(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: MugliaTheme.textPrimary,

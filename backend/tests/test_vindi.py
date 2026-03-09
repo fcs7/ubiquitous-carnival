@@ -1,5 +1,5 @@
 from app.models import (
-    Cliente, Financeiro, Processo, VindiBill, VindiCustomer, VindiSubscription,
+    Cliente, Processo, VindiBill, VindiCustomer, VindiSubscription,
 )
 
 
@@ -62,25 +62,6 @@ def test_vincular_subscription_a_processo(client, db):
     r = client.post(f"/vindi/subscriptions/{vs.id}/vincular", json={"processo_id": processo.id})
     assert r.status_code == 200
     assert r.json()["processo_id"] == processo.id
-
-
-def test_vinculacao_retroativa_cria_financeiro(client, db):
-    """Vincular customer + subscription com bills existentes cria Financeiro."""
-    cliente, processo, vc, vs, vb = _setup_completo(db)
-
-    # Vincula subscription a processo
-    client.post(f"/vindi/subscriptions/{vs.id}/vincular", json={"processo_id": processo.id})
-
-    # Vincula customer a cliente — deve criar Financeiro retroativamente
-    client.post(f"/vindi/customers/{vc.id}/vincular", json={"cliente_id": cliente.id})
-
-    db.refresh(vb)
-    assert vb.financeiro_id is not None
-
-    fin = db.get(Financeiro, vb.financeiro_id)
-    assert fin.cliente_id == cliente.id
-    assert fin.processo_id == processo.id
-    assert float(fin.valor) == 2000.00
 
 
 def test_ignorar_customer(client, db):

@@ -5,40 +5,12 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.models import (
-    Financeiro, VindiBill, VindiCustomer, VindiProduct, VindiSubscription,
-)
+from app.models import VindiBill, VindiCustomer, VindiProduct, VindiSubscription
 
 
 def validar_signature(payload_bytes: bytes, signature: str, secret: str) -> bool:
     expected = hmac.new(secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
-
-
-# ── Auto-criacao de Financeiro ──────────────────
-
-def auto_criar_financeiro(db: Session, vindi_bill: VindiBill, vindi_customer: VindiCustomer, vindi_subscription: VindiSubscription | None) -> Financeiro | None:
-    """Cria Financeiro se customer vinculado E subscription com processo."""
-    if not vindi_customer.cliente_id:
-        return None
-    if not vindi_subscription or not vindi_subscription.processo_id:
-        return None
-
-    status_map = {"pending": "pendente", "paid": "pago", "canceled": "cancelado"}
-    lancamento = Financeiro(
-        processo_id=vindi_subscription.processo_id,
-        cliente_id=vindi_customer.cliente_id,
-        tipo="honorario",
-        descricao=f"Vindi bill #{vindi_bill.vindi_id}",
-        valor=vindi_bill.valor,
-        status=status_map.get(vindi_bill.status, "pendente"),
-        data_vencimento=vindi_bill.data_vencimento,
-        data_pagamento=vindi_bill.data_pagamento,
-    )
-    db.add(lancamento)
-    db.flush()
-    vindi_bill.financeiro_id = lancamento.id
-    return lancamento
 
 
 # ── Handlers por evento ─────────────────────────
@@ -151,11 +123,6 @@ def handle_bill_created(db: Session, data: dict) -> None:
         dados_json=json.dumps(bill_data),
     )
     db.add(vb)
-    db.flush()
-
-    if vc and vs:
-        auto_criar_financeiro(db, vb, vc, vs)
-
     db.commit()
 
 
@@ -169,13 +136,6 @@ def handle_bill_paid(db: Session, data: dict) -> None:
     vb.status = "paid"
     vb.data_pagamento = _parse_date(bill_data.get("paid_at")) or date.today()
     vb.dados_json = json.dumps(bill_data)
-
-    if vb.financeiro_id:
-        fin = db.get(Financeiro, vb.financeiro_id)
-        if fin:
-            fin.status = "pago"
-            fin.data_pagamento = vb.data_pagamento
-
     db.commit()
 
 
@@ -188,12 +148,6 @@ def handle_bill_canceled(db: Session, data: dict) -> None:
 
     vb.status = "canceled"
     vb.dados_json = json.dumps(bill_data)
-
-    if vb.financeiro_id:
-        fin = db.get(Financeiro, vb.financeiro_id)
-        if fin:
-            fin.status = "cancelado"
-
     db.commit()
 
 
@@ -211,33 +165,17 @@ def handle_charge_rejected(db: Session, data: dict) -> None:
 # ── Vinculacao ──────────────────────────────────
 
 def vincular_customer(db: Session, vindi_customer_id: int, cliente_id: int) -> VindiCustomer:
-    """Vincula vindi_customer a cliente e processa bills pendentes."""
+    """Vincula vindi_customer a cliente."""
     vc = db.get(VindiCustomer, vindi_customer_id)
     vc.cliente_id = cliente_id
     vc.status_sync = "vinculado"
-
-    for bill in vc.bills:
-        if bill.financeiro_id:
-            continue
-        vs = bill.vindi_subscription
-        if vs and vs.processo_id:
-            auto_criar_financeiro(db, bill, vc, vs)
-
     db.commit()
     return vc
 
 
 def vincular_subscription(db: Session, vindi_subscription_id: int, processo_id: int) -> VindiSubscription:
-    """Vincula subscription a processo e processa bills pendentes."""
+    """Vincula subscription a processo."""
     vs = db.get(VindiSubscription, vindi_subscription_id)
     vs.processo_id = processo_id
-
-    vc = vs.vindi_customer
-    if vc and vc.cliente_id:
-        for bill in vs.bills:
-            if bill.financeiro_id:
-                continue
-            auto_criar_financeiro(db, bill, vc, vs)
-
     db.commit()
     return vs
