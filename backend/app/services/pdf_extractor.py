@@ -109,3 +109,40 @@ def carregar_cache(file_id: str, modified_time: str) -> str | None:
         return None
     with open(cache, encoding="utf-8") as f:
         return f.read()
+
+
+def obter_texto_pdf(
+    file_id: str,
+    modified_time: str | None = None,
+    pagina_inicio: int | None = None,
+    pagina_fim: int | None = None,
+) -> str:
+    """Orquestra: cache -> download -> extracao -> cache.
+
+    Args:
+        file_id: ID do arquivo no Google Drive
+        modified_time: modifiedTime do Drive (para validar cache)
+        pagina_inicio: pagina inicial (1-indexed)
+        pagina_fim: pagina final (1-indexed)
+    """
+    usa_paginacao = pagina_inicio is not None or pagina_fim is not None
+
+    # Cache so funciona para documento completo
+    if not usa_paginacao and modified_time:
+        cache = carregar_cache(file_id, modified_time)
+        if cache is not None:
+            return cache
+
+    # Download do Drive (import local para evitar import circular)
+    from app.services.google_drive import baixar_bytes_arquivo
+    pdf_bytes, meta = baixar_bytes_arquivo(file_id)
+    mod_time = meta.get("modifiedTime", "")
+
+    # Extracao
+    texto = extrair_texto_pdf(pdf_bytes, pagina_inicio=pagina_inicio, pagina_fim=pagina_fim)
+
+    # Salva cache do documento completo
+    if not usa_paginacao and mod_time:
+        salvar_cache(file_id, texto, mod_time)
+
+    return texto

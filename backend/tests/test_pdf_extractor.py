@@ -6,6 +6,7 @@ import fitz  # pymupdf
 
 from app.services.pdf_extractor import (
     extrair_texto_pdf,
+    obter_texto_pdf,
     PdfExtractionError,
     _cache_path,
     salvar_cache,
@@ -99,3 +100,49 @@ def test_cache_inexistente(tmp_path):
     with patch.object(settings, "pdf_cache_dir", str(tmp_path)):
         resultado = carregar_cache("naoexiste", "2026-03-08T10:00:00Z")
         assert resultado is None
+
+
+# --- Testes do orquestrador obter_texto_pdf ---
+
+
+def test_obter_texto_pdf_com_cache(tmp_path):
+    """Se cache existe e esta atualizado, nao chama Drive."""
+    with patch.object(settings, "pdf_cache_dir", str(tmp_path)):
+        salvar_cache("file123", "Texto cacheado", "2026-03-08T10:00:00Z")
+
+        with patch("app.services.google_drive.baixar_bytes_arquivo") as mock_baixar:
+            resultado = obter_texto_pdf("file123", modified_time="2026-03-08T10:00:00Z")
+            assert resultado == "Texto cacheado"
+            mock_baixar.assert_not_called()
+
+
+def test_obter_texto_pdf_sem_cache(tmp_path):
+    """Sem cache, baixa do Drive, extrai e salva cache."""
+    pdf_bytes = _criar_pdf_teste("Peticao inicial do autor")
+
+    with patch.object(settings, "pdf_cache_dir", str(tmp_path)):
+        with patch("app.services.google_drive.baixar_bytes_arquivo") as mock_baixar:
+            mock_baixar.return_value = (pdf_bytes, {"modifiedTime": "2026-03-08T10:00:00Z"})
+
+            resultado = obter_texto_pdf("file456")
+            assert "Peticao inicial do autor" in resultado
+            mock_baixar.assert_called_once_with("file456")
+
+            # Cache deve ter sido salvo
+            cache = carregar_cache("file456", "2026-03-08T10:00:00Z")
+            assert cache is not None
+            assert "Peticao inicial do autor" in cache
+
+
+def test_obter_texto_pdf_com_paginas(tmp_path):
+    """Paginacao nao usa cache (pode ser intervalo diferente)."""
+    pdf_bytes = _criar_pdf_teste("Texto do auto", num_paginas=20)
+
+    with patch.object(settings, "pdf_cache_dir", str(tmp_path)):
+        with patch("app.services.google_drive.baixar_bytes_arquivo") as mock_baixar:
+            mock_baixar.return_value = (pdf_bytes, {"modifiedTime": "2026-03-08T10:00:00Z"})
+
+            resultado = obter_texto_pdf("file789", pagina_inicio=5, pagina_fim=8)
+            assert "pagina 5" in resultado
+            assert "pagina 8" in resultado
+            assert "pagina 1" not in resultado
