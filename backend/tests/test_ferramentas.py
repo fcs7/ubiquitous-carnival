@@ -1,9 +1,10 @@
 from datetime import datetime, date
-from app.models import Cliente, Processo, ProcessoParte, Movimento, Prazo, Financeiro
+from unittest.mock import patch, MagicMock
+from app.models import Cliente, Processo, ProcessoParte, Movimento, Prazo, Documento
 from app.services.ferramentas.processo import executar_buscar_processo, executar_listar_movimentos
 from app.services.ferramentas.cliente import executar_buscar_cliente
 from app.services.ferramentas.prazo import executar_calcular_prazo, executar_listar_prazos
-from app.services.ferramentas.financeiro import executar_resumo_financeiro
+from app.services.ferramentas.drive import executar_ler_documento, executar_buscar_em_documentos
 
 
 def _criar_processo_completo(db):
@@ -45,16 +46,6 @@ def _criar_processo_completo(db):
     )
     db.add(prazo)
 
-    fin = Financeiro(
-        processo_id=processo.id,
-        cliente_id=cliente.id,
-        tipo="honorario",
-        descricao="Honorarios iniciais",
-        valor=5000.00,
-        status="pendente",
-        data_vencimento=date(2026, 7, 15),
-    )
-    db.add(fin)
     db.commit()
 
     return processo, cliente
@@ -109,14 +100,6 @@ def test_listar_prazos_pendentes(db):
     resultado = executar_listar_prazos({"processo_id": processo.id}, db)
     assert "contestacao" in resultado
     assert "PRAZOS PENDENTES" in resultado
-
-
-def test_resumo_financeiro(db):
-    processo, _ = _criar_processo_completo(db)
-    resultado = executar_resumo_financeiro({"processo_id": processo.id}, db)
-    assert "R$" in resultado
-    assert "PENDENTE" in resultado
-    assert "honorario" in resultado
 
 
 # ──────────────────────────────────────────────
@@ -195,3 +178,132 @@ def test_listar_prazos_vencido(db):
 
     resultado = executar_listar_prazos({"processo_id": processo.id}, db)
     assert "VENCIDO" in resultado
+
+
+# ──────────────────────────────────────────────
+# Helpers para documentos
+# ──────────────────────────────────────────────
+def _criar_documento_pdf(db, processo):
+    doc = Documento(
+        nome="peticao_inicial.pdf",
+        tipo="drive",
+        categoria="peticao",
+        mime_type="application/pdf",
+        drive_file_id="drive_abc123",
+        drive_url="https://drive.google.com/file/d/drive_abc123",
+        origem="drive",
+        processo_id=processo.id,
+    )
+    db.add(doc)
+    db.commit()
+    return doc
+
+
+# ──────────────────────────────────────────────
+# T8 — ler_documento
+# ──────────────────────────────────────────────
+def test_ler_documento_sucesso(db):
+    processo, _ = _criar_processo_completo(db)
+    doc = _criar_documento_pdf(db, processo)
+
+    with patch("app.services.ferramentas.drive.obter_texto_pdf") as mock_pdf:
+        with patch("app.services.ferramentas.drive.obter_metadados") as mock_meta:
+            mock_meta.return_value = {"modifiedTime": "2026-03-08T10:00:00Z"}
+            mock_pdf.return_value = "Texto da peticao inicial do autor Joao Silva"
+
+            resultado = executar_ler_documento({"documento_id": doc.id}, db)
+            assert "peticao_inicial.pdf" in resultado
+            assert "Texto da peticao inicial" in resultado
+
+
+def test_ler_documento_com_paginas(db):
+    processo, _ = _criar_processo_completo(db)
+    doc = _criar_documento_pdf(db, processo)
+
+    with patch("app.services.ferramentas.drive.obter_texto_pdf") as mock_pdf:
+        with patch("app.services.ferramentas.drive.obter_metadados") as mock_meta:
+            mock_meta.return_value = {"modifiedTime": "2026-03-08T10:00:00Z"}
+            mock_pdf.return_value = "Texto das paginas 3 a 5"
+
+            resultado = executar_ler_documento({"documento_id": doc.id, "paginas": "3-5"}, db)
+            assert "Texto das paginas 3 a 5" in resultado
+            mock_pdf.assert_called_once_with(
+                "drive_abc123",
+                modified_time="2026-03-08T10:00:00Z",
+                pagina_inicio=3,
+                pagina_fim=5,
+            )
+
+
+def test_ler_documento_inexistente(db):
+    resultado = executar_ler_documento({"documento_id": 9999}, db)
+    assert "nao encontrado" in resultado.lower()
+
+
+def test_ler_documento_sem_drive(db):
+    processo, _ = _criar_processo_completo(db)
+    doc = Documento(
+        nome="arquivo_local.pdf",
+        tipo="upload",
+        mime_type="application/pdf",
+        origem="local",
+        processo_id=processo.id,
+    )
+    db.add(doc)
+    db.commit()
+
+    resultado = executar_ler_documento({"documento_id": doc.id}, db)
+    assert "google drive" in resultado.lower() or "drive" in resultado.lower()
+
+
+# ──────────────────────────────────────────────
+# T9 — buscar_em_documentos
+# ──────────────────────────────────────────────
+def test_buscar_em_documentos_encontra(db):
+    processo, _ = _criar_processo_completo(db)
+    doc = _criar_documento_pdf(db, processo)
+
+    with patch("app.services.ferramentas.drive.obter_texto_pdf") as mock_pdf:
+        with patch("app.services.ferramentas.drive.obter_metadados") as mock_meta:
+            mock_meta.return_value = {"modifiedTime": "2026-03-08T10:00:00Z"}
+            mock_pdf.return_value = "O autor requer a rescisao do contrato conforme clausula quinta"
+
+            resultado = executar_buscar_em_documentos(
+                {"termo": "rescisao", "processo_id": processo.id}, db,
+            )
+            assert "peticao_inicial.pdf" in resultado
+            assert "rescisao" in resultado.lower()
+
+
+def test_buscar_em_documentos_nao_encontra(db):
+    processo, _ = _criar_processo_completo(db)
+    doc = _criar_documento_pdf(db, processo)
+
+    with patch("app.services.ferramentas.drive.obter_texto_pdf") as mock_pdf:
+        with patch("app.services.ferramentas.drive.obter_metadados") as mock_meta:
+            mock_meta.return_value = {"modifiedTime": "2026-03-08T10:00:00Z"}
+            mock_pdf.return_value = "Texto sem o termo buscado"
+
+            resultado = executar_buscar_em_documentos(
+                {"termo": "rescisao", "processo_id": processo.id}, db,
+            )
+            assert "nenhum" in resultado.lower()
+
+
+def test_buscar_em_documentos_sem_termo(db):
+    resultado = executar_buscar_em_documentos({"processo_id": 1}, db)
+    assert "obrigatorio" in resultado.lower() or "termo" in resultado.lower()
+
+
+def test_buscar_em_documentos_sem_processo(db):
+    """Busca global (sem processo_id) deve funcionar."""
+    processo, _ = _criar_processo_completo(db)
+    doc = _criar_documento_pdf(db, processo)
+
+    with patch("app.services.ferramentas.drive.obter_texto_pdf") as mock_pdf:
+        with patch("app.services.ferramentas.drive.obter_metadados") as mock_meta:
+            mock_meta.return_value = {"modifiedTime": "2026-03-08T10:00:00Z"}
+            mock_pdf.return_value = "Contrato de locacao residencial"
+
+            resultado = executar_buscar_em_documentos({"termo": "locacao"}, db)
+            assert "peticao_inicial.pdf" in resultado
