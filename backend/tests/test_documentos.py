@@ -250,6 +250,7 @@ def test_ferramenta_listar_documentos(db):
     assert "contrato.pdf" in resultado
     assert "Google Drive" in resultado
     assert "1 encontrados" in resultado
+    assert f"[ID:{doc.id}]" in resultado
 
 
 def test_ferramenta_sem_documentos(db):

@@ -146,3 +146,13 @@ def test_obter_texto_pdf_com_paginas(tmp_path):
             assert "pagina 5" in resultado
             assert "pagina 8" in resultado
             assert "pagina 1" not in resultado
+
+
+def test_cache_path_traversal_prevention(tmp_path):
+    """file_id com caracteres de path traversal e sanitizado."""
+    with patch.object(settings, "pdf_cache_dir", str(tmp_path)):
+        salvar_cache("../../etc/passwd", "Texto malicioso", "2026-03-08T10:00:00Z")
+        # Arquivo deve estar DENTRO do cache_dir, nao fora
+        assert not os.path.exists("/etc/passwd.txt")
+        resultado = carregar_cache("../../etc/passwd", "2026-03-08T10:00:00Z")
+        assert resultado == "Texto malicioso"

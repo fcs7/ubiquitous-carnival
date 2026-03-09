@@ -48,7 +48,7 @@ def executar_listar_documentos_processo(input_data: dict, db: Session) -> str:
     for doc in docs:
         origem = "Google Drive" if doc.origem == "drive" else "Local"
         link = doc.drive_url or doc.arquivo_path or "sem link"
-        linhas.append(f"  [{origem}] {doc.nome} ({doc.mime_type}) — {doc.categoria or 'sem categoria'} — {link}")
+        linhas.append(f"  [ID:{doc.id}] [{origem}] {doc.nome} ({doc.mime_type}) — {doc.categoria or 'sem categoria'} — {link}")
 
     return "\n".join(linhas)
 
@@ -115,6 +115,13 @@ def executar_ler_documento(input_data: dict, db: Session) -> str:
         except (ValueError, IndexError):
             return f"Formato de paginas invalido: '{paginas_str}'. Use formato '1-5' ou '3'."
 
+    # Limite de paginas padrao quando nenhum intervalo informado
+    from app.config import settings as _settings
+    truncado_por_paginas = False
+    if not paginas_str:
+        pagina_fim = _settings.pdf_paginas_default
+        truncado_por_paginas = True
+
     # Obter modifiedTime para cache
     try:
         meta = obter_metadados(doc.drive_file_id)
@@ -140,6 +147,9 @@ def executar_ler_documento(input_data: dict, db: Session) -> str:
     if paginas_str:
         header += f" (paginas {paginas_str})"
     header += f"\nCategoria: {doc.categoria or 'sem categoria'}"
+
+    if truncado_por_paginas and texto.strip():
+        header += f"\n[Mostrando primeiras {_settings.pdf_paginas_default} paginas. Use paginas='{_settings.pdf_paginas_default + 1}-{_settings.pdf_paginas_default + 10}' para continuar]"
 
     return f"{header}\n\n{texto}"
 

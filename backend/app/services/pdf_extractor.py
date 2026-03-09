@@ -64,14 +64,19 @@ def extrair_texto_pdf(
 # --- Cache local de PDFs extraidos ---
 
 
+def _safe_file_id(file_id: str) -> str:
+    """Remove caracteres perigosos do file_id para uso em caminhos de arquivo."""
+    return file_id.replace("/", "_").replace("\\", "_").replace("..", "_")
+
+
 def _cache_path(file_id: str) -> str:
     """Caminho do arquivo de texto em cache."""
-    return os.path.join(settings.pdf_cache_dir, f"{file_id}.txt")
+    return os.path.join(settings.pdf_cache_dir, f"{_safe_file_id(file_id)}.txt")
 
 
 def _meta_path(file_id: str) -> str:
     """Caminho do arquivo de metadados do cache."""
-    return os.path.join(settings.pdf_cache_dir, f"{file_id}.meta.json")
+    return os.path.join(settings.pdf_cache_dir, f"{_safe_file_id(file_id)}.meta.json")
 
 
 def salvar_cache(file_id: str, texto: str, modified_time: str) -> None:
