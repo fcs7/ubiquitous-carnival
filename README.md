@@ -1,26 +1,6 @@
-# Escritorio Virtual — Plataforma Juridica Inteligente
+# Muglia — Escritorio Virtual Juridico
 
-Sistema interno para gestao de processos judiciais, clientes, financeiro e comunicacao.
-
-## Instalar em producao (1 comando)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/fcs7/ubiquitous-carnival/master/deploy.sh | sudo bash
-```
-
-Instala tudo automaticamente em Ubuntu/Debian: Docker, banco, containers, firewall e systemd.
-Re-execute para atualizar — nunca sobrescreve suas configuracoes.
-
-> Detalhes e opcoes avancadas: [docs/DEPLOY.md](docs/DEPLOY.md)
-
-## O que faz
-
-- Monitora ~1000 processos via API DataJud (CNJ) diariamente
-- Traduz andamentos juridicos para linguagem simples com IA
-- Notifica clientes por WhatsApp automaticamente
-- Chat juridico com Claude API para gerar documentos
-- Recebe cobranças do Vindi via webhook e vincula ao financeiro
-- Sistema de tags para organizar qualquer entidade
+Sistema interno para o escritorio Muglia. Assistentes IA configuraveis para gerar documentos juridicos, consultar processos e buscar em PDFs. Integra com Google Drive (documentos) e Vindi (cobrancas).
 
 ## Stack
 
@@ -28,47 +8,20 @@ Re-execute para atualizar — nunca sobrescreve suas configuracoes.
 |--------|-----------|
 | Backend | FastAPI + Python 3.14 |
 | Banco | PostgreSQL 17 |
-| Fila | Celery + Redis |
-| IA | Claude API (chat/docs) + OpenAI gpt-4o-mini (traducao) |
-| WhatsApp | Evolution API |
-| Cobranças | Vindi (webhooks) |
+| IA | Claude API + OpenAI gpt-4o-mini |
+| Documentos | Google Drive API + PyMuPDF (extracao PDF) |
+| Cobrancas | Vindi (webhooks) |
 | Frontend | Flutter (web + mobile) |
 | Deploy | Docker Compose |
 
-## Estrutura
+## Funcionalidades
 
-```
-backend/
-  app/
-    main.py              # FastAPI app, registra routers
-    models.py            # 17 models SQLAlchemy
-    schemas.py           # Pydantic schemas (entrada/saida)
-    database.py          # Engine, session, get_db
-    config.py            # Variaveis de ambiente
-    routers/
-      clientes.py        # CRUD clientes
-      processos.py       # CRUD processos + consulta DataJud
-      financeiro.py      # Lancamentos financeiros
-      prazos.py          # Prazos processuais
-      chat.py            # Chat juridico com Claude
-      vindi_webhook.py   # Recebe webhooks do Vindi
-      vindi.py           # Gestao Vindi (vincular, listar)
-      tags.py            # Tags polimoricas
-    services/
-      datajud.py         # Consulta API DataJud (90+ tribunais)
-      monitor.py         # Celery task: monitoramento diario
-      ia.py              # Traducao de andamentos (OpenAI)
-      claude_chat.py     # Chat juridico (Claude API)
-      whatsapp.py        # Notificacoes WhatsApp (Evolution)
-      vindi.py           # Processamento webhooks Vindi
-  tests/                 # Testes automatizados
-  Dockerfile
-  requirements.txt
-frontend/                # Flutter app (web + mobile)
-docker-compose.yml       # Sobe tudo com um comando
-```
-
----
+- **Assistentes IA configuraveis** — agentes com tool-calling, memoria e streaming
+- **8 ferramentas IA**: buscar processo, listar movimentos, buscar cliente, calcular prazo, listar prazos, listar documentos, ler PDF, buscar em PDFs
+- **Extracao de PDFs** — baixa PDFs do Google Drive, extrai texto com PyMuPDF, cache local inteligente
+- **Google Drive** — organiza documentos por processo, busca, vincula arquivos
+- **Vindi** — sincroniza customers, subscriptions e bills via webhook
+- **Chat juridico** — system prompt com contexto do processo + config do escritorio
 
 ## Desenvolvimento local
 
@@ -76,186 +29,146 @@ docker-compose.yml       # Sobe tudo com um comando
 
 - Python 3.14+
 - Docker e Docker Compose
-- Git
 
-### 1. Clonar o repositorio
+### Setup
 
 ```bash
 git clone <url-do-repo>
 cd Muglia
-```
 
-### 2. Subir banco e Redis
+# Subir banco
+docker compose up db -d
 
-```bash
-docker compose up db redis -d
-```
-
-Isso inicia:
-- PostgreSQL na porta 5432 (usuario: `muglia`, senha: `muglia`, banco: `muglia`)
-- Redis na porta 6379
-
-### 3. Configurar o backend
-
-```bash
+# Configurar backend
 cd backend
-
-# Criar ambiente virtual
 python -m venv .venv
+.venv/bin/pip install -r requirements.txt
 
-# Ativar (Linux/Mac)
-source .venv/bin/activate
-
-# Instalar dependencias
-pip install -r requirements.txt
-```
-
-### 4. Criar arquivo .env
-
-```bash
-cp .env.example .env   # ou crie manualmente
+# Criar .env
+cp .env.example .env
 ```
 
 Conteudo minimo do `.env`:
 
 ```env
 DATABASE_URL=postgresql://muglia:muglia@localhost:5432/muglia
-REDIS_URL=redis://localhost:6379/0
 ANTHROPIC_API_KEY=sua_chave_aqui
-OPENAI_API_KEY=sua_chave_aqui
 ```
 
 Variaveis opcionais:
 
 ```env
-# WhatsApp (Evolution API)
-EVOLUTION_API_URL=http://localhost:8080
-EVOLUTION_API_KEY=sua_chave
-
-# Vindi (cobranças)
+OPENAI_API_KEY=sua_chave_aqui
 VINDI_WEBHOOK_SECRET=seu_secret_hmac
 VINDI_API_KEY=sua_api_key
-
-# DataJud (ja tem default no codigo)
-DATAJUD_API_KEY=chave_publica_cnj
+GOOGLE_CREDENTIALS_PATH=/caminho/para/credentials.json
+GOOGLE_DRIVE_ROOT_FOLDER_ID=id_da_pasta_raiz
 ```
 
-### 5. Rodar o servidor
+### Rodar
 
 ```bash
+# Servidor dev
 .venv/bin/uvicorn app.main:app --reload
-```
 
-O servidor sobe em `http://localhost:8000`. As tabelas do banco sao criadas automaticamente no startup.
-
-- Documentacao da API: `http://localhost:8000/docs`
-- Health check: `http://localhost:8000/health`
-
-### 6. Rodar com Docker Compose (tudo junto)
-
-Se preferir subir tudo de uma vez (backend + banco + redis + worker):
-
-```bash
-# Na raiz do projeto
+# Tudo via Docker
 docker compose up -d --build
 ```
 
----
+API docs: `http://localhost:8000/docs`
 
 ## Testes
 
-Os testes usam SQLite em memoria — nao precisam de banco externo.
+SQLite em memoria — nao precisa de banco externo. **131 testes passando**.
 
 ```bash
 cd backend
 
-# Rodar todos os testes
+# Todos os testes
 .venv/bin/python -m pytest tests/ -v
 
-# Rodar um arquivo especifico
-.venv/bin/python -m pytest tests/test_tags.py -v
-
-# Rodar um teste especifico
-.venv/bin/python -m pytest tests/test_vindi_webhook.py::test_bill_paid -v
+# Teste especifico
+.venv/bin/python -m pytest tests/test_ferramentas.py::test_ler_documento_sucesso -v
 ```
 
-Atualmente: **70 testes passando**.
+## Estrutura
 
----
+```
+backend/app/
+  main.py                 # FastAPI app
+  models.py               # SQLAlchemy models
+  config.py               # Settings (pydantic-settings)
+  routers/
+    assistente.py          # Endpoint unificado do assistente IA
+    agentes.py             # CRUD agentes configuraveis
+    chat.py                # Conversas e mensagens
+    clientes.py            # CRUD clientes
+    processos.py           # CRUD processos + parse CNJ (90+ tribunais)
+    documentos.py          # Google Drive integration
+    prazos.py              # Prazos processuais
+    vindi.py               # Gestao Vindi (vincular, listar)
+    vindi_webhook.py       # Recebe webhooks do Vindi
+    status.py              # Health check
+  services/
+    agente_chat.py         # Motor do agente IA (tool-calling loop)
+    assistente.py          # Auto-cria agente + conversa
+    claude_chat.py         # Chat juridico (Claude API)
+    google_drive.py        # Google Drive API (CRUD + download seguro)
+    pdf_extractor.py       # Extracao de texto de PDFs + cache local
+    vindi.py               # Processamento webhooks Vindi
+    ferramentas/           # Ferramentas do agente IA
+      processo.py          # buscar_processo, listar_movimentos
+      cliente.py           # buscar_cliente
+      prazo.py             # calcular_prazo, listar_prazos
+      drive.py             # listar_documentos, ler_documento, buscar_em_documentos
+backend/tests/             # 131 testes (SQLite in-memory)
+frontend/                  # Flutter app (web + mobile)
+```
 
 ## Endpoints principais
 
+### Assistente IA
+- `POST /assistente/mensagem` — envia mensagem ao assistente (auto-cria agente/conversa)
+- `GET /assistente/historico` — historico de conversas
+
+### Agentes
+- `POST /agentes/` — criar agente configuravel
+- `GET /agentes/ferramentas` — listar ferramentas disponiveis
+
 ### Clientes
 - `POST /clientes/` — criar cliente
-- `GET /clientes/` — listar clientes
-- `GET /clientes/{id}` — detalhe do cliente
+- `GET /clientes/` — listar (busca por nome/CPF)
 
 ### Processos
-- `POST /processos/` — cadastrar processo (consulta DataJud automaticamente)
-- `GET /processos/` — listar processos (filtro por status, busca por CNJ)
-- `GET /processos/{id}` — detalhe com partes e movimentos
+- `POST /processos/` — cadastrar processo (parse CNJ automatico)
+- `GET /processos/` — listar (filtro por status, busca por CNJ)
 
-### Financeiro
-- `POST /financeiro/` — criar lancamento
-- `GET /financeiro/` — listar lancamentos (filtro por status)
-- `GET /financeiro/resumo` — totais (pendente, pago, total)
+### Documentos (Google Drive)
+- `GET /documentos/drive/pasta/{id}` — listar pasta
+- `POST /documentos/vincular` — vincular arquivo do Drive a processo
+- `POST /documentos/organizar/{processo_id}` — montar pasta no Drive
 
-### Prazos
-- `POST /prazos/` — criar prazo
-- `GET /prazos/` — listar prazos
-
-### Chat Juridico
-- `POST /conversas/` — criar conversa
-- `POST /conversas/{id}/mensagens` — enviar mensagem (resposta via Claude API)
-
-### Vindi (cobranças)
-- `POST /webhooks/vindi` — recebe webhooks do Vindi
-- `GET /vindi/customers` — listar customers do Vindi
+### Vindi
+- `POST /webhooks/vindi` — recebe webhooks
 - `POST /vindi/customers/{id}/vincular` — vincular customer a cliente
 - `POST /vindi/subscriptions/{id}/vincular` — vincular subscription a processo
-- `GET /vindi/bills` — listar bills
-
-### Tags
-- `POST /tags/` — criar tag
-- `GET /tags/` — listar tags
-- `POST /tags/aplicar` — aplicar tag a qualquer entidade
-- `GET /tags/entidade/{tipo}/{id}` — listar tags de uma entidade
-
----
 
 ## Configuracao Vindi
 
-Para receber webhooks do Vindi:
-
 1. Adicione `VINDI_WEBHOOK_SECRET` ao `.env`
-2. Na dashboard do Vindi, va em Configuracoes > Webhooks
+2. Na dashboard Vindi: Configuracoes > Webhooks
 3. URL: `https://seu-dominio.com/webhooks/vindi`
 4. Eventos: `customer_created`, `customer_updated`, `bill_created`, `bill_paid`, `bill_canceled`, `subscription_created`, `subscription_canceled`, `charge_rejected`
-5. Copie o Secret e coloque em `VINDI_WEBHOOK_SECRET`
 
-### Fluxo Vindi
+## Configuracao Google Drive
 
-1. Vindi envia webhook → dados salvos em tabelas espelho (`vindi_customers`, `vindi_bills`, etc.)
-2. Usuario vincula `vindi_customer` a um `cliente` do Muglia
-3. Usuario vincula `vindi_subscription` a um `processo`
-4. Quando ambos estao vinculados, novas bills geram lancamentos em `financeiro` automaticamente
-5. Quando bill e paga no Vindi, o lancamento financeiro e atualizado para "pago"
+1. Crie uma Service Account no Google Cloud Console
+2. Compartilhe a pasta raiz do Drive com o email da Service Account
+3. Configure no `.env`:
 
----
-
-## Monitoramento de processos
-
-O worker Celery roda diariamente as 7h:
-
-1. Consulta todos os processos ativos na API DataJud
-2. Detecta novos movimentos (compara por codigo + data/hora)
-3. Traduz os andamentos para linguagem simples (OpenAI)
-4. Notifica os clientes por WhatsApp (Evolution API)
-
-Para rodar o worker manualmente:
-
-```bash
-cd backend
-.venv/bin/celery -A app.worker worker --loglevel=info
-.venv/bin/celery -A app.worker beat --loglevel=info
+```env
+GOOGLE_CREDENTIALS_PATH=/caminho/para/credentials.json
+GOOGLE_DRIVE_ROOT_FOLDER_ID=id_da_pasta_raiz
 ```
+
+O sistema valida que toda operacao esta dentro da pasta raiz configurada. Zero operacoes de delete.
