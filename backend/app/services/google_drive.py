@@ -177,6 +177,57 @@ def baixar_conteudo_arquivo(file_id: str) -> tuple[str, str]:
     return "", ""
 
 
+def baixar_bytes_arquivo(file_id: str, max_bytes: int | None = None) -> tuple[bytes, dict]:
+    """Baixa bytes de um arquivo do Drive com validacoes de seguranca.
+
+    Fluxo seguro:
+    1. Busca metadados (sem download)
+    2. Valida MIME, tamanho, e escopo (dentro da raiz)
+    3. So entao faz download
+
+    Retorna (bytes, metadados).
+    """
+    from app.config import settings as _settings
+    if max_bytes is None:
+        max_bytes = _settings.pdf_max_bytes
+
+    service = _get_service()
+
+    # 1. Metadados primeiro (sem download)
+    try:
+        meta = service.files().get(fileId=file_id, fields="id,name,mimeType,modifiedTime,size").execute()
+    except HttpError as e:
+        raise DriveServiceError(f"Erro ao obter metadados para download: {e}") from e
+
+    # 2. Validacoes
+    mime = meta.get("mimeType", "")
+    size = int(meta.get("size", 0))
+    nome = meta.get("name", "")
+
+    if mime != "application/pdf":
+        raise DriveServiceError(f"Tipo nao suportado: {mime}. Apenas application/pdf e aceito.")
+
+    if size > max_bytes:
+        raise DriveServiceError(
+            f"Arquivo '{nome}' muito grande: {size / 1024 / 1024:.1f}MB (limite: {max_bytes / 1024 / 1024:.0f}MB)."
+        )
+
+    _validar_dentro_raiz(file_id)
+
+    # 3. Download
+    try:
+        request = service.files().get_media(fileId=file_id)
+        buffer = io.BytesIO()
+        downloader = MediaIoBaseDownload(buffer, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        logger.info("DRIVE AUDIT: PDF baixado — id=%s, nome=%s, size=%s", file_id, nome, size)
+        return buffer.getvalue(), meta
+    except HttpError as e:
+        raise DriveServiceError(f"Erro ao baixar arquivo '{nome}': {e}") from e
+
+
 # ──────────────────────────────────────────────
 # Escrita (com validacao de seguranca + audit log)
 # ──────────────────────────────────────────────
