@@ -1,4 +1,7 @@
-"""Extracao de texto de arquivos PDF usando PyMuPDF."""
+"""Extracao de texto de arquivos PDF usando PyMuPDF, com cache local."""
+import json
+import os
+
 import fitz  # pymupdf
 
 from app.config import settings
@@ -56,3 +59,53 @@ def extrair_texto_pdf(
         return texto
     finally:
         doc.close()
+
+
+# --- Cache local de PDFs extraidos ---
+
+
+def _cache_path(file_id: str) -> str:
+    """Caminho do arquivo de texto em cache."""
+    return os.path.join(settings.pdf_cache_dir, f"{file_id}.txt")
+
+
+def _meta_path(file_id: str) -> str:
+    """Caminho do arquivo de metadados do cache."""
+    return os.path.join(settings.pdf_cache_dir, f"{file_id}.meta.json")
+
+
+def salvar_cache(file_id: str, texto: str, modified_time: str) -> None:
+    """Salva texto extraido em cache local.
+
+    Args:
+        file_id: identificador unico do arquivo (Google Drive ID)
+        texto: texto extraido do PDF
+        modified_time: data de modificacao do arquivo original (para invalidacao)
+    """
+    os.makedirs(settings.pdf_cache_dir, exist_ok=True)
+    with open(_cache_path(file_id), "w", encoding="utf-8") as f:
+        f.write(texto)
+    with open(_meta_path(file_id), "w", encoding="utf-8") as f:
+        json.dump({"modified_time": modified_time}, f)
+
+
+def carregar_cache(file_id: str, modified_time: str) -> str | None:
+    """Carrega texto do cache se existir e estiver atualizado.
+
+    Args:
+        file_id: identificador unico do arquivo
+        modified_time: data de modificacao atual do arquivo
+
+    Returns:
+        Texto cacheado ou None se cache inexistente/desatualizado.
+    """
+    meta = _meta_path(file_id)
+    cache = _cache_path(file_id)
+    if not os.path.exists(meta) or not os.path.exists(cache):
+        return None
+    with open(meta, encoding="utf-8") as f:
+        dados = json.load(f)
+    if dados.get("modified_time") != modified_time:
+        return None
+    with open(cache, encoding="utf-8") as f:
+        return f.read()
