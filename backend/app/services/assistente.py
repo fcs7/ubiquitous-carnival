@@ -1,5 +1,5 @@
 import json
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -67,6 +67,56 @@ def get_or_create_conversa_assistente(db: Session, usuario_id: int) -> Conversa:
     return conversa
 
 
+def criar_conversa_assistente(
+    db: Session, usuario_id: int, agente_id: int, titulo: str | None = None
+) -> Conversa:
+    agente = db.query(AgenteConfig).filter(AgenteConfig.id == agente_id).first()
+    if not agente:
+        raise ValueError("Agente nao encontrado")
+
+    conversa = Conversa(
+        titulo=titulo,
+        usuario_id=usuario_id,
+        agente_id=agente.id,
+        modelo_claude=agente.modelo,
+    )
+    db.add(conversa)
+    db.commit()
+    db.refresh(conversa)
+    return conversa
+
+
+def listar_conversas_assistente(db: Session, usuario_id: int) -> list[Conversa]:
+    return (
+        db.query(Conversa)
+        .filter(
+            Conversa.usuario_id == usuario_id,
+            Conversa.titulo != TITULO_CONVERSA_ASSISTENTE,
+        )
+        .order_by(Conversa.updated_at.desc())
+        .all()
+    )
+
+
+def deletar_conversa_assistente(db: Session, usuario_id: int, conversa_id: int) -> None:
+    conversa = (
+        db.query(Conversa)
+        .filter(Conversa.id == conversa_id, Conversa.usuario_id == usuario_id)
+        .first()
+    )
+    if not conversa:
+        raise ValueError("Conversa nao encontrada")
+    db.delete(conversa)
+    db.commit()
+
+
+def gerar_titulo_automatico(mensagem: str) -> str:
+    texto = mensagem.strip()
+    if len(texto) <= 60:
+        return texto
+    return texto[:57] + "..."
+
+
 def montar_contexto_urgente(db: Session) -> str:
     limite = date.today() + timedelta(days=7)
     prazos = (
@@ -97,12 +147,31 @@ def carregar_historico_limitado(db: Session, conversa_id: int, limite: int = 20)
     return [{"role": m.role, "content": m.conteudo} for m in mensagens]
 
 
-def assistente_chat(db: Session, usuario_id: int, mensagem: str) -> dict:
+def assistente_chat(
+    db: Session,
+    usuario_id: int,
+    mensagem: str,
+    conversa_id: int | None = None,
+    agente_id: int | None = None,
+) -> dict:
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
         raise ValueError("Usuario nao encontrado")
 
-    conversa = get_or_create_conversa_assistente(db, usuario_id)
+    # Resolver conversa: existente, nova com agente, ou sentinel legado
+    if conversa_id:
+        conversa = (
+            db.query(Conversa)
+            .filter(Conversa.id == conversa_id, Conversa.usuario_id == usuario_id)
+            .first()
+        )
+        if not conversa:
+            raise ValueError("Conversa nao encontrada")
+    elif agente_id:
+        conversa = criar_conversa_assistente(db, usuario_id, agente_id)
+    else:
+        conversa = get_or_create_conversa_assistente(db, usuario_id)
+
     agente = conversa.agente_config
     if not agente:
         agente = get_or_create_agente_padrao(db, usuario_id)
@@ -150,6 +219,13 @@ def assistente_chat(db: Session, usuario_id: int, mensagem: str) -> dict:
             tokens_output=total_output,
         )
         db.add_all([msg_user, msg_assistant])
+
+        # Auto-gerar titulo na primeira mensagem (sentinel __assistente__ nao muda)
+        if conversa.titulo is None:
+            conversa.titulo = gerar_titulo_automatico(mensagem)
+
+        # Atualizar updated_at da conversa
+        conversa.updated_at = datetime.now(UTC)
         db.commit()
     except Exception:
         db.add(msg_user)

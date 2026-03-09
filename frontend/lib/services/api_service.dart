@@ -124,11 +124,47 @@ class ApiService {
     return _handleMap(resp);
   }
 
-  Future<Map<String, dynamic>> enviarMensagemAssistente(String mensagem, {int usuarioId = 1}) async {
+  Future<List<dynamic>> getAssistenteConversas({int usuarioId = 1}) async {
+    final resp = await _client.get(Uri.parse('$baseUrl/assistente/conversas?usuario_id=$usuarioId'));
+    return _handleList(resp);
+  }
+
+  Future<Map<String, dynamic>> criarAssistenteConversa(int agenteId, {String? titulo, int usuarioId = 1}) async {
+    final body = <String, dynamic>{'agente_id': agenteId};
+    if (titulo != null) body['titulo'] = titulo;
+    final resp = await _client.post(
+      Uri.parse('$baseUrl/assistente/conversas?usuario_id=$usuarioId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+    return _handleMap(resp);
+  }
+
+  Future<Map<String, dynamic>> getAssistenteConversaDetalhe(int id, {int usuarioId = 1}) async {
+    final resp = await _client.get(Uri.parse('$baseUrl/assistente/conversas/$id?usuario_id=$usuarioId'));
+    return _handleMap(resp);
+  }
+
+  Future<void> deletarAssistenteConversa(int id, {int usuarioId = 1}) async {
+    final resp = await _client.delete(Uri.parse('$baseUrl/assistente/conversas/$id?usuario_id=$usuarioId'));
+    if (resp.statusCode >= 300) {
+      throw ApiException(resp.statusCode, resp.body);
+    }
+  }
+
+  Future<Map<String, dynamic>> enviarMensagemAssistente(
+    String mensagem, {
+    int? conversaId,
+    int? agenteId,
+    int usuarioId = 1,
+  }) async {
+    final body = <String, dynamic>{'mensagem': mensagem};
+    if (conversaId != null) body['conversa_id'] = conversaId;
+    if (agenteId != null) body['agente_id'] = agenteId;
     final resp = await _client.post(
       Uri.parse('$baseUrl/assistente/mensagens?usuario_id=$usuarioId'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'mensagem': mensagem}),
+      body: jsonEncode(body),
     );
     return _handleMap(resp);
   }

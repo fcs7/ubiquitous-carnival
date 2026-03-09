@@ -155,3 +155,182 @@ def test_conversa_assistente_nao_aparece_em_listagem(client, db):
     conversas = resp.json()
     for c in conversas:
         assert c["titulo"] != "__assistente__"
+
+
+# ── Novos testes: multi-conversa ────────────────────
+
+
+def _setup_agente(db, usuario):
+    """Cria agente auxiliar para testes de multi-conversa."""
+    import json as _json
+    from app.models import AgenteConfig
+    agente = AgenteConfig(
+        usuario_id=usuario.id,
+        nome="Agente Teste",
+        descricao="Agente para testes",
+        provider="anthropic",
+        modelo="claude-haiku-4-5-20251001",
+        ferramentas_habilitadas=_json.dumps([]),
+        max_tokens=1024,
+        max_iteracoes_tool=5,
+    )
+    db.add(agente)
+    db.commit()
+    db.refresh(agente)
+    return agente
+
+
+def test_criar_conversa_com_agente(client, db):
+    usuario = _setup_usuario(db)
+    agente = _setup_agente(db, usuario)
+
+    resp = client.post(
+        f"/assistente/conversas?usuario_id={usuario.id}",
+        json={"agente_id": agente.id, "titulo": "Conversa de teste"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["agente_id"] == agente.id
+    assert data["titulo"] == "Conversa de teste"
+    assert data["usuario_id"] == usuario.id
+
+
+def test_listar_conversas(client, db):
+    usuario = _setup_usuario(db)
+    agente = _setup_agente(db, usuario)
+
+    # Criar 2 conversas
+    client.post(
+        f"/assistente/conversas?usuario_id={usuario.id}",
+        json={"agente_id": agente.id, "titulo": "Conversa A"},
+    )
+    client.post(
+        f"/assistente/conversas?usuario_id={usuario.id}",
+        json={"agente_id": agente.id, "titulo": "Conversa B"},
+    )
+
+    # Criar sentinel via mensagem legada (nao deve aparecer)
+    with patch("app.services.assistente.get_provider") as mock_get:
+        mock_get.return_value = _mock_provider_end_turn("Ok")
+        client.post(
+            f"/assistente/mensagens?usuario_id={usuario.id}",
+            json={"mensagem": "Teste sentinel"},
+        )
+
+    resp = client.get(f"/assistente/conversas?usuario_id={usuario.id}")
+    assert resp.status_code == 200
+    conversas = resp.json()
+    assert len(conversas) == 2
+    # Ordenado por updated_at DESC — B foi criada depois
+    assert conversas[0]["titulo"] == "Conversa B"
+    assert conversas[1]["titulo"] == "Conversa A"
+    for c in conversas:
+        assert c["titulo"] != "__assistente__"
+
+
+def test_enviar_mensagem_conversa_especifica(client, db):
+    usuario = _setup_usuario(db)
+    agente = _setup_agente(db, usuario)
+
+    # Criar conversa
+    resp_conv = client.post(
+        f"/assistente/conversas?usuario_id={usuario.id}",
+        json={"agente_id": agente.id},
+    )
+    conversa_id = resp_conv.json()["id"]
+
+    with patch("app.services.assistente.get_provider") as mock_get:
+        mock_get.return_value = _mock_provider_end_turn("Resposta especifica")
+        resp = client.post(
+            f"/assistente/mensagens?usuario_id={usuario.id}",
+            json={"mensagem": "Pergunta na conversa especifica", "conversa_id": conversa_id},
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["conversa_id"] == conversa_id
+    assert resp.json()["resposta"] == "Resposta especifica"
+
+
+def test_enviar_mensagem_cria_nova_conversa(client, db):
+    """Backward compat: sem conversa_id usa sentinel __assistente__."""
+    usuario = _setup_usuario(db)
+
+    with patch("app.services.assistente.get_provider") as mock_get:
+        mock_get.return_value = _mock_provider_end_turn("Ok legado")
+        resp = client.post(
+            f"/assistente/mensagens?usuario_id={usuario.id}",
+            json={"mensagem": "Mensagem legada"},
+        )
+
+    assert resp.status_code == 200
+    assert "conversa_id" in resp.json()
+
+
+def test_titulo_automatico(client, db):
+    """Conversa criada sem titulo recebe titulo da primeira mensagem."""
+    usuario = _setup_usuario(db)
+    agente = _setup_agente(db, usuario)
+
+    resp_conv = client.post(
+        f"/assistente/conversas?usuario_id={usuario.id}",
+        json={"agente_id": agente.id},
+    )
+    conversa_id = resp_conv.json()["id"]
+    assert resp_conv.json()["titulo"] is None
+
+    with patch("app.services.assistente.get_provider") as mock_get:
+        mock_get.return_value = _mock_provider_end_turn("Resposta")
+        client.post(
+            f"/assistente/mensagens?usuario_id={usuario.id}",
+            json={"mensagem": "Quais os prazos pendentes desta semana?", "conversa_id": conversa_id},
+        )
+
+    # Verificar titulo gerado
+    resp_det = client.get(f"/assistente/conversas/{conversa_id}?usuario_id={usuario.id}")
+    assert resp_det.status_code == 200
+    assert resp_det.json()["titulo"] == "Quais os prazos pendentes desta semana?"
+
+
+def test_deletar_conversa(client, db):
+    usuario = _setup_usuario(db)
+    agente = _setup_agente(db, usuario)
+
+    resp_conv = client.post(
+        f"/assistente/conversas?usuario_id={usuario.id}",
+        json={"agente_id": agente.id, "titulo": "Para deletar"},
+    )
+    conversa_id = resp_conv.json()["id"]
+
+    resp = client.delete(f"/assistente/conversas/{conversa_id}?usuario_id={usuario.id}")
+    assert resp.status_code == 204
+
+    # Confirmar que nao existe mais
+    resp_det = client.get(f"/assistente/conversas/{conversa_id}?usuario_id={usuario.id}")
+    assert resp_det.status_code == 404
+
+
+def test_detalhe_conversa(client, db):
+    usuario = _setup_usuario(db)
+    agente = _setup_agente(db, usuario)
+
+    resp_conv = client.post(
+        f"/assistente/conversas?usuario_id={usuario.id}",
+        json={"agente_id": agente.id, "titulo": "Detalhes"},
+    )
+    conversa_id = resp_conv.json()["id"]
+
+    # Enviar mensagem para ter conteudo
+    with patch("app.services.assistente.get_provider") as mock_get:
+        mock_get.return_value = _mock_provider_end_turn("Resposta detalhada")
+        client.post(
+            f"/assistente/mensagens?usuario_id={usuario.id}",
+            json={"mensagem": "Pergunta detalhe", "conversa_id": conversa_id},
+        )
+
+    resp = client.get(f"/assistente/conversas/{conversa_id}?usuario_id={usuario.id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["titulo"] == "Detalhes"
+    assert len(data["mensagens"]) == 2
+    assert data["mensagens"][0]["role"] == "user"
+    assert data["mensagens"][1]["role"] == "assistant"

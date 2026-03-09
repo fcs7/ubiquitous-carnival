@@ -202,6 +202,13 @@ class ChatResponse(BaseModel):
 # -- Assistente --
 class AssistenteMensagemCreate(BaseModel):
     mensagem: str
+    conversa_id: int | None = None
+    agente_id: int | None = None
+
+
+class AssistenteConversaCreate(BaseModel):
+    agente_id: int
+    titulo: str | None = None
 
 
 class AssistenteResponse(ChatResponse):
