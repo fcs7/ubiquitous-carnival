@@ -108,7 +108,7 @@ backend/app/
     prazos.py              # Prazos processuais
     vindi.py               # Gestao Vindi (vincular, listar)
     vindi_webhook.py       # Recebe webhooks do Vindi
-    status.py              # Health check
+    status.py              # GET /api/status — saude do sistema e agentes
   services/
     agente_chat.py         # Motor do agente IA (tool-calling loop)
     assistente.py          # Auto-cria agente + conversa
@@ -147,6 +147,9 @@ frontend/                  # Flutter app (web + mobile)
 - `GET /documentos/drive/pasta/{id}` — listar pasta
 - `POST /documentos/vincular` — vincular arquivo do Drive a processo
 - `POST /documentos/organizar/{processo_id}` — montar pasta no Drive
+
+### Status do Sistema
+- `GET /api/status` — verifica saude do banco, API keys, Google Drive, Vindi e agentes ativos
 
 ### Vindi
 - `POST /webhooks/vindi` — recebe webhooks
