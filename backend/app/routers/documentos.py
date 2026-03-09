@@ -17,7 +17,7 @@ def _handle_drive_error(e: DriveServiceError):
     msg = str(e)
     if "SEGURANCA" in msg:
         raise HTTPException(status_code=403, detail=msg)
-    raise HTTPException(status_code=502, detail=f"Erro no Google Drive: {msg}")
+    raise HTTPException(status_code=502, detail="Erro no Google Drive")
 
 
 # ──────────────────────────────────────────────

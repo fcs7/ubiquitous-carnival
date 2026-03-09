@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     vindi_webhook_secret: str = ""
     vindi_api_key: str = ""
+    # JWT Auth
+    jwt_secret_key: str = "TROCAR-EM-PRODUCAO-chave-secreta-128bits-min"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 480  # 8 horas
     # Google Drive
     google_credentials_path: str = "/run/secrets/google_credentials.json"
     google_drive_root_folder_id: str = ""

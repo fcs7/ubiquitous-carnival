@@ -17,8 +17,8 @@ def _checar_banco(db: Session) -> dict:
     try:
         db.execute(text("SELECT 1"))
         return {"nome": "PostgreSQL", "status": "ok", "detalhes": None}
-    except Exception as e:
-        return {"nome": "PostgreSQL", "status": "erro", "detalhes": str(e)}
+    except Exception:
+        return {"nome": "PostgreSQL", "status": "erro", "detalhes": "Falha na conexao com o banco"}
 
 
 def _checar_api_key(nome: str, chave: str) -> dict:
