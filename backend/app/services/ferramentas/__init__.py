@@ -9,11 +9,10 @@ from app.services.ferramentas.prazo import (
     SCHEMA_CALCULAR_PRAZO, executar_calcular_prazo,
     SCHEMA_LISTAR_PRAZOS, executar_listar_prazos,
 )
-from app.services.ferramentas.financeiro import (
-    SCHEMA_RESUMO_FINANCEIRO, executar_resumo_financeiro,
-)
 from app.services.ferramentas.drive import (
     SCHEMA_LISTAR_DOCUMENTOS_PROCESSO, executar_listar_documentos_processo,
+    SCHEMA_LER_DOCUMENTO, executar_ler_documento,
+    SCHEMA_BUSCAR_EM_DOCUMENTOS, executar_buscar_em_documentos,
 )
 
 FERRAMENTAS_DISPONIVEIS: dict[str, dict] = {
@@ -47,16 +46,22 @@ FERRAMENTAS_DISPONIVEIS: dict[str, dict] = {
         "descricao_ui": "Lista prazos pendentes de um processo",
         "categoria": "prazo",
     },
-    "resumo_financeiro": {
-        "schema": SCHEMA_RESUMO_FINANCEIRO,
-        "executor": executar_resumo_financeiro,
-        "descricao_ui": "Resume posicao financeira de um processo especifico",
-        "categoria": "financeiro",
-    },
     "listar_documentos_processo": {
         "schema": SCHEMA_LISTAR_DOCUMENTOS_PROCESSO,
         "executor": executar_listar_documentos_processo,
         "descricao_ui": "Lista documentos e arquivos vinculados a um processo",
+        "categoria": "documento",
+    },
+    "ler_documento": {
+        "schema": SCHEMA_LER_DOCUMENTO,
+        "executor": executar_ler_documento,
+        "descricao_ui": "Le o conteudo textual de um documento PDF do Google Drive",
+        "categoria": "documento",
+    },
+    "buscar_em_documentos": {
+        "schema": SCHEMA_BUSCAR_EM_DOCUMENTOS,
+        "executor": executar_buscar_em_documentos,
+        "descricao_ui": "Busca um termo dentro do conteudo de documentos PDF",
         "categoria": "documento",
     },
 }
