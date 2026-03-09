@@ -60,6 +60,11 @@ def _get_service():
 # ──────────────────────────────────────────────
 # Seguranca: validacao de escopo
 # ──────────────────────────────────────────────
+def _sanitizar_query(valor: str) -> str:
+    """Escapa aspas simples para uso seguro em queries do Drive API."""
+    return valor.replace("\\", "\\\\").replace("'", "\\'")
+
+
 def _validar_dentro_raiz(file_id: str) -> None:
     """Verifica se o arquivo/pasta esta dentro da pasta raiz configurada.
     Sobe a hierarquia de parents ate encontrar a raiz ou atingir o limite."""
@@ -110,7 +115,7 @@ def listar_pasta(pasta_id: str, apenas_pastas: bool = False) -> list[dict]:
 def buscar_arquivo(nome: str, pasta_id: str | None = None) -> list[dict]:
     """Busca arquivos por nome (parcial)."""
     service = _get_service()
-    q = f"name contains '{nome}' and trashed=false"
+    q = f"name contains '{_sanitizar_query(nome)}' and trashed=false"
     if pasta_id:
         q += f" and '{pasta_id}' in parents"
     try:
@@ -251,7 +256,7 @@ def criar_pasta(nome: str, pasta_pai_id: str) -> dict:
 def obter_ou_criar_pasta(nome: str, pasta_pai_id: str) -> dict:
     """Busca pasta por nome dentro do pai. Cria se nao existir. Idempotente."""
     service = _get_service()
-    q = f"name='{nome}' and '{pasta_pai_id}' in parents and mimeType='{FOLDER_MIME}' and trashed=false"
+    q = f"name='{_sanitizar_query(nome)}' and '{pasta_pai_id}' in parents and mimeType='{FOLDER_MIME}' and trashed=false"
     try:
         resultado = service.files().list(q=q, fields=FIELDS_LISTA, pageSize=1).execute()
     except HttpError as e:
