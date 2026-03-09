@@ -13,6 +13,17 @@ def _webhook_payload(event_type: str, data: dict) -> dict:
     return {"event": {"type": event_type, "data": data}}
 
 
+def _post_webhook(client, monkeypatch, payload: dict, secret: str = "segredo123"):
+    """Envia webhook com assinatura HMAC valida."""
+    monkeypatch.setattr("app.config.settings.vindi_webhook_secret", secret)
+    body = json.dumps(payload).encode()
+    sig = _sign(body, secret)
+    return client.post("/webhooks/vindi", content=body, headers={
+        "Content-Type": "application/json",
+        "X-Vindi-Signature": sig,
+    })
+
+
 # ── Validacao HMAC ──────────────────────────────
 
 def test_webhook_signature_invalida(client, monkeypatch):
@@ -36,21 +47,21 @@ def test_webhook_signature_valida(client, monkeypatch):
     assert r.status_code == 200
 
 
-def test_webhook_sem_secret_aceita_tudo(client, monkeypatch):
+def test_webhook_sem_secret_rejeita(client, monkeypatch):
+    """Sem vindi_webhook_secret configurado, webhook retorna 503."""
     monkeypatch.setattr("app.config.settings.vindi_webhook_secret", "")
     body = json.dumps(_webhook_payload("customer_created", {"customer": {"id": 99, "name": "Sem Secret"}}))
     r = client.post("/webhooks/vindi", content=body, headers={"Content-Type": "application/json"})
-    assert r.status_code == 200
+    assert r.status_code == 503
 
 
 # ── Customer created ────────────────────────────
 
 def test_customer_created(client, db, monkeypatch):
-    monkeypatch.setattr("app.config.settings.vindi_webhook_secret", "")
     payload = _webhook_payload("customer_created", {
         "customer": {"id": 42, "name": "Joao Silva", "email": "joao@test.com", "registry_code": "12345678901"},
     })
-    r = client.post("/webhooks/vindi", json=payload)
+    r = _post_webhook(client, monkeypatch, payload)
     assert r.status_code == 200
 
     vc = db.query(VindiCustomer).filter_by(vindi_id=42).first()
@@ -64,10 +75,8 @@ def test_customer_created(client, db, monkeypatch):
 # ── Bill created sem vinculo ────────────────────
 
 def test_bill_created_sem_vinculo(client, db, monkeypatch):
-    monkeypatch.setattr("app.config.settings.vindi_webhook_secret", "")
-
     # Criar customer primeiro
-    client.post("/webhooks/vindi", json=_webhook_payload("customer_created", {
+    _post_webhook(client, monkeypatch, _webhook_payload("customer_created", {
         "customer": {"id": 10, "name": "Maria"},
     }))
 
@@ -80,7 +89,7 @@ def test_bill_created_sem_vinculo(client, db, monkeypatch):
             "due_at": "2026-04-01",
         },
     })
-    r = client.post("/webhooks/vindi", json=payload)
+    r = _post_webhook(client, monkeypatch, payload)
     assert r.status_code == 200
 
     vb = db.query(VindiBill).filter_by(vindi_id=100).first()
@@ -92,7 +101,6 @@ def test_bill_created_sem_vinculo(client, db, monkeypatch):
 # ── Bill created com vinculo completo ───────────
 
 def test_bill_created_com_vinculo_completo(client, db, monkeypatch):
-    monkeypatch.setattr("app.config.settings.vindi_webhook_secret", "")
     from app.models import Cliente, Processo
 
     cliente = Cliente(nome="Pedro", cpf_cnpj="111", telefone="11999")
@@ -123,7 +131,7 @@ def test_bill_created_com_vinculo_completo(client, db, monkeypatch):
             "due_at": "2026-05-01",
         },
     })
-    r = client.post("/webhooks/vindi", json=payload)
+    r = _post_webhook(client, monkeypatch, payload)
     assert r.status_code == 200
 
     vb = db.query(VindiBill).filter_by(vindi_id=300).first()
@@ -135,7 +143,6 @@ def test_bill_created_com_vinculo_completo(client, db, monkeypatch):
 # ── Bill paid ─────────────────────────────────
 
 def test_bill_paid(client, db, monkeypatch):
-    monkeypatch.setattr("app.config.settings.vindi_webhook_secret", "")
     from app.models import Cliente, Processo
     from app.models import VindiCustomer as VC, VindiSubscription as VS
 
@@ -154,13 +161,13 @@ def test_bill_paid(client, db, monkeypatch):
     db.commit()
 
     # Cria bill
-    client.post("/webhooks/vindi", json=_webhook_payload("bill_created", {
+    _post_webhook(client, monkeypatch, _webhook_payload("bill_created", {
         "bill": {"id": 400, "customer": {"id": 30, "name": "Ana"}, "subscription": {"id": 300},
                  "amount": 800.00, "status": "pending", "due_at": "2026-06-01"},
     }))
 
     # Paga bill
-    r = client.post("/webhooks/vindi", json=_webhook_payload("bill_paid", {
+    r = _post_webhook(client, monkeypatch, _webhook_payload("bill_paid", {
         "bill": {"id": 400, "paid_at": "2026-06-01"},
     }))
     assert r.status_code == 200

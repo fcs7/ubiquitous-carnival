@@ -17,6 +17,7 @@ class Usuario(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(255))
     email: Mapped[str] = mapped_column(String(255), unique=True)
+    senha_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     oab: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))

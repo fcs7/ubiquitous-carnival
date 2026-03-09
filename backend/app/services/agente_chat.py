@@ -62,7 +62,8 @@ def _executar_ferramenta(tool_name: str, tool_input: dict, tool_use_id: str, db:
             resultado = executor(tool_input, db)
     except Exception as e:
         erro = str(e)
-        resultado = f"Erro ao executar ferramenta: {e}"
+        logger.error("Erro ao executar ferramenta %s: %s", tool_name, erro, exc_info=True)
+        resultado = f"Erro ao executar ferramenta '{tool_name}'. Tente novamente."
 
     duracao = int((time.time() - inicio) * 1000)
 
